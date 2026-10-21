@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h1>Tournaments</h1>
+  <p class="muted">Live standings, pairings and results. Pick a sport.</p>
+</div>
+<div class="cards">
+  {% for key, s in SPORTS.items() %}
+  <a class="card sportcard" href="{{ url_for('public.sport', sport=key) }}">
+    <div class="icon">{{ s.icon }}</div>
+    <h2>{{ s.name }}</h2>
+    {% set ts = groups[key] %}
+    <div class="muted small">{{ ts|length }} tournament{{ 's' if ts|length != 1 }}{% set n = ts|selectattr('status', 'equalto', 'live')|list|length %}{% if n %} · <span class="badge live">{{ n }} live</span>{% endif %}</div>
+  </a>
+  {% endfor %}
+</div>
+{% if live %}
+<h2 style="margin-top:2rem">Happening now</h2>
+<div class="stack">
+  {% for t in live %}
+  <a class="card sportcard row between" href="{{ url_for('public.standings', slug=t.slug) }}">
+    <span>{{ t.rules.icon }} <strong>{{ t.name }}</strong> <span class="muted small">{{ t.rules.name }}</span></span>
+    <span class="badge live">Round {{ t.max_round or 1 }}</span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

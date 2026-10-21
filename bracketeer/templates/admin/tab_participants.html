@@ -1,0 +1,56 @@
+{% set upper = t.sport == 'scrabble' %}
+<div class="grid2" style="align-items:start">
+  <form class="card" method="post" action="{{ url_for('admin.add_participant', tid=t.id) }}">
+    {% include "admin/_csrf.html" %}
+    <h2>Add {{ rules.participant_label|lower }}</h2>
+    <div class="field"><label for="pn">Name</label><input id="pn" name="name" required maxlength="120" autofocus></div>
+    {% if rules.has_clubs %}<div class="field"><label for="pc">Club / school</label><input id="pc" name="club" maxlength="120"></div>{% endif %}
+    <div class="field"><label for="pr">{{ 'Seed (higher = stronger)' if t.sport == 'football' else 'Rating' }}</label><input id="pr" name="rating" inputmode="numeric" placeholder="{{ rules.default_rating }}"></div>
+    <button class="btn primary" type="submit">Add</button>
+  </form>
+  <form class="card" method="post" action="{{ url_for('admin.bulk_participants', tid=t.id) }}" enctype="multipart/form-data">
+    {% include "admin/_csrf.html" %}
+    <h2>Bulk add</h2>
+    <p class="muted small">One per line: <code>Name, Club, Rating</code> (club and rating optional). Or upload a CSV with the same columns.</p>
+    <div class="field"><textarea name="lines" rows="5" placeholder="Kofi Mensah, ATU, 1250&#10;Ama Owusu, UG"></textarea></div>
+    <div class="field"><input type="file" name="csv" accept=".csv,text/csv"></div>
+    <button class="btn" type="submit">Add all</button>
+  </form>
+</div>
+<div class="row between" style="margin:1.25rem 0 .5rem"><h2 style="margin:0">{{ rules.participant_plural }} ({{ t.participants|length }})</h2>
+  <input class="search" type="search" placeholder="Search…" data-filter="#plist" aria-label="Search"></div>
+<div class="card pad0 tablewrap">
+<table id="plist">
+  <thead><tr><th>Name</th>{% if rules.has_clubs %}<th>Club</th>{% endif %}<th class="num">{{ 'Seed' if t.sport == 'football' else 'Rating' }}</th><th></th></tr></thead>
+  <tbody>
+  {% for p in t.participants %}
+    <tr data-row class="{{ 'withdrawn' if not p.active }}">
+      <td class="name">{{ p.name }}{% if not p.active %} <span class="badge">withdrawn</span>{% endif %}</td>
+      {% if rules.has_clubs %}<td class="muted">{{ p.club }}</td>{% endif %}
+      <td class="num">{{ p.seed_rating }}</td>
+      <td class="right">
+        <details class="inline"><summary class="small">Edit</summary>
+          <form method="post" action="{{ url_for('admin.manage_participant', tid=t.id, pid=p.id) }}" class="row" style="margin-top:.5rem">
+            {% include "admin/_csrf.html" %}<input type="hidden" name="action" value="edit">
+            <input name="name" value="{{ p.name }}" required style="width:12rem">
+            {% if rules.has_clubs %}<input name="club" value="{{ p.club }}" placeholder="Club" style="width:8rem">{% endif %}
+            <input name="rating" value="{{ p.seed_rating }}" inputmode="numeric" style="width:5.5rem">
+            <button class="btn sm primary" type="submit">Save</button>
+          </form>
+        </details>
+        <form class="inline" method="post" action="{{ url_for('admin.manage_participant', tid=t.id, pid=p.id) }}">
+          {% include "admin/_csrf.html" %}<input type="hidden" name="action" value="toggle">
+          <button class="btn sm" type="submit">{{ 'Reinstate' if not p.active else 'Withdraw' }}</button>
+        </form>
+        {% if not p.has_games() %}
+        <form class="inline" method="post" action="{{ url_for('admin.manage_participant', tid=t.id, pid=p.id) }}">
+          {% include "admin/_csrf.html" %}<input type="hidden" name="action" value="delete">
+          <button class="btn sm danger" type="submit" data-confirm="Remove {{ p.name }}?">Remove</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+  {% else %}<tr><td colspan="4" class="muted">Nobody yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>

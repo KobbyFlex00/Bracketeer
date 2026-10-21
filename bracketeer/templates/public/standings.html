@@ -1,0 +1,35 @@
+{% extends "public/_tournament.html" %}
+{% from "public/_name.html" import pname %}
+{% block page %}
+<div class="row between noprint" style="margin-bottom:.75rem">
+  <input class="search" type="search" placeholder="Search {{ rules.participant_plural|lower }}…" data-filter="#standings" aria-label="Search">
+  <a class="btn sm" href="{{ url_for('public.standings_csv', slug=t.slug) }}">Download CSV</a>
+</div>
+<div class="card pad0 tablewrap">
+<table id="standings">
+  <thead><tr>
+    <th class="rank">#</th><th>{{ rules.participant_label }}</th>
+    {% if rules.has_clubs %}<th class="hide-sm">Club</th>{% endif %}
+    {% for key, label, cls in rules.columns %}<th class="{{ cls }}">{{ label }}</th>{% endfor %}
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr data-row class="{{ 'withdrawn' if not r.p.active }}">
+      <td class="rank">{{ r.rank }}</td>
+      <td class="name">{{ pname(t, r.p) }}{% if not r.p.active %} <span class="badge">withdrawn</span>{% endif %}</td>
+      {% if rules.has_clubs %}<td class="hide-sm muted">{{ r.p.club }}</td>{% endif %}
+      {% for key, label, cls in rules.columns %}
+        {% set v = r.stats[key]|stat(rules, key) %}
+        <td class="{{ cls }}">{{ v|signed if 'signed' in cls else v }}</td>
+      {% endfor %}
+    </tr>
+  {% else %}
+    <tr><td colspan="9" class="muted">No {{ rules.participant_plural|lower }} yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if t.sport == 'scrabble' %}<p class="muted small">Ranked by wins, then spread, then SOS (sum of opponents' wins), then rating. Ratings use Elo (K={{ t.setting('elo_k', 20) }}).</p>
+{% elif t.sport == 'chess' %}<p class="muted small">Tie-breaks: Buchholz (sum of opponents' points), Sonneborn-Berger, wins, rating.</p>
+{% else %}<p class="muted small">{{ t.setting('win_points', 3) }} points for a win, 1 for a draw. Ties broken by goal difference, then goals scored.{% if t.format == 'league_knockout' %} Top {{ t.setting('ko_teams', 4) }} go to the knockout.{% endif %}</p>{% endif %}
+{% endblock %}

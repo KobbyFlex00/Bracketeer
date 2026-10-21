@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}TD login · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="card" style="max-width:380px;margin:2rem auto">
+  <h1>Tournament Director login</h1>
+  <form method="post">
+    {% include "admin/_csrf.html" %}
+    <div class="field"><label for="u">Username</label><input id="u" name="username" autocomplete="username" required autofocus></div>
+    <div class="field"><label for="pw">Password</label><input id="pw" type="password" name="password" autocomplete="current-password" required></div>
+    <div class="field row"><input id="rm" type="checkbox" name="remember" value="1"><label for="rm" style="margin:0">Keep me signed in</label></div>
+    <button class="btn primary" type="submit" style="width:100%">Sign in</button>
+  </form>
+</div>
+{% endblock %}

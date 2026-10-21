@@ -1,0 +1,17 @@
+{% extends "public/_tournament.html" %}
+{% block page %}
+<div class="card pad0 tablewrap">
+<table>
+  <thead><tr><th class="rank">#</th><th>Club</th><th class="num">Members</th><th class="num">{{ rules.columns[0][1] }}</th>
+    <th class="num">L</th>{% if t.sport == 'scrabble' %}<th class="num">Spread</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for c in clubs %}
+    <tr><td class="rank">{{ loop.index }}</td><td class="name">{{ c.name }}</td><td class="num">{{ c.members }}</td>
+      <td class="num strong">{{ c.points|stat(rules, rules.columns[0][0]) }}</td><td class="num">{{ c.losses|stat(rules, 'losses') }}</td>
+      {% if t.sport == 'scrabble' %}<td class="num">{{ c.spread|signed }}</td>{% endif %}</tr>
+  {% else %}<tr><td colspan="6" class="muted">No clubs yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="muted small">Club totals add up every member's results.</p>
+{% endblock %}

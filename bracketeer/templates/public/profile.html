@@ -1,0 +1,32 @@
+{% extends "public/_tournament.html" %}
+{% from "public/_name.html" import pname %}
+{% block page %}
+<div class="card" style="margin-bottom:1rem">
+  <h2>{{ p.name }}{% if not p.active %} <span class="badge">withdrawn</span>{% endif %}</h2>
+  <div class="muted small">{% if p.club %}{{ p.club }} · {% endif %}{% if row %}Rank {{ row.rank }} of {{ total }}{% endif %}{% if t.sport != 'football' %} · Seed rating {{ p.seed_rating }}{% endif %}</div>
+  {% if row %}
+  <div class="row" style="margin-top:.75rem">
+    {% for key, label, cls in rules.columns %}
+      {% set v = row.stats[key]|stat(rules, key) %}
+      <div class="card" style="padding:.5rem .8rem"><div class="muted small">{{ label }}</div><strong>{{ v|signed if 'signed' in cls else v }}</strong></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+<div class="card pad0 tablewrap">
+<table>
+  <thead><tr><th>Round</th><th>Opponent</th><th>Side</th><th>Result</th><th>Score</th></tr></thead>
+  <tbody>
+  {% for g in games %}
+    {% set opp = g.p2 if g.p1_id == p.id else g.p1 %}
+    {% set o = rules.outcome_for(g, p.id) %}
+    <tr><td>{{ g.round }}{% if g.stage == 'knockout' %} <span class="badge">KO</span>{% endif %}</td>
+      <td class="name">{{ pname(t, opp) }}</td>
+      <td class="muted">{% if g.p2_id %}{{ rules.side_labels[0 if g.p1_id == p.id else 1] }}{% endif %}</td>
+      <td>{% if o %}<span class="out out-{{ o }}">{{ o }}</span>{% else %}<span class="muted">pending</span>{% endif %}</td>
+      <td>{{ rules.score_text(g, p.id) }}</td></tr>
+  {% else %}<tr><td colspan="5" class="muted">No games yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

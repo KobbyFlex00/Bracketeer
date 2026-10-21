@@ -1,0 +1,24 @@
+{% extends "public/_tournament.html" %}
+{% from "public/_name.html" import pname %}
+{% block page %}
+{% if champion %}<div class="card champion" style="margin-bottom:1rem">🏆 Champion: {{ pname(t, champion) }}</div>{% endif %}
+{% if not rounds %}
+  <div class="card muted">The knockout bracket appears here once the first knockout round is drawn.</div>
+{% else %}
+<div class="bracket">
+  {% for rnd, label, games in rounds %}
+  <div class="col">
+    <h3>{{ label }} <span class="muted small">R{{ rnd }}</span></h3>
+    {% for g in games %}
+      {% set w = g.winner_id() %}
+      <div class="tie">
+        <div class="{{ 'won' if w == g.p1_id }}"><span>{{ pname(t, g.p1) }}</span><span>{{ g.score1 if g.score1 is not none }}</span></div>
+        <div class="{{ 'won' if w and w == g.p2_id }}"><span>{% if g.p2 %}{{ pname(t, g.p2) }}{% else %}<span class="muted">bye</span>{% endif %}</span><span>{{ g.score2 if g.score2 is not none }}</span></div>
+        {% if g.pen_winner %}<div class="small muted">won on penalties</div>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

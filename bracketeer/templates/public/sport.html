@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% set active_sport = sport.key %}
+{% block title %}{{ sport.name }} · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="hero"><h1>{{ sport.icon }} {{ sport.name }} tournaments</h1></div>
+{% set any_t = namespace(found=false) %}
+{% for status, ts in sections if ts %}
+  {% set any_t.found = true %}
+  <h2 style="margin-top:1.25rem">{{ {'live': 'Live now', 'upcoming': 'Upcoming', 'finished': 'Past'}[status] }}</h2>
+  <div class="cards">
+  {% for t in ts %}
+    <a class="card sportcard" href="{{ url_for('public.standings', slug=t.slug) }}">
+      <h3>{{ t.name }}</h3>
+      <div class="muted small">{{ sport.formats.get(t.format, t.format) }} · {{ t.participants|length }} {{ sport.participant_plural|lower }}</div>
+      {% if t.venue %}<div class="muted small">{{ t.venue }}</div>{% endif %}
+    </a>
+  {% endfor %}
+  </div>
+{% endfor %}
+{% if not any_t.found %}<div class="card muted">No {{ sport.name }} tournaments yet.</div>{% endif %}
+{% endblock %}

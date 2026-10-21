@@ -1,0 +1,10 @@
+{% from "public/_name.html" import pname %}
+{%- macro game_row(t, rules, g) -%}
+{% set w = g.winner_id() %}
+<div class="game">
+  <div class="board">{% if g.p2_id %}#{{ g.board }}{% endif %}</div>
+  <div class="{{ 'win' if w == g.p1_id and g.p2_id }}">{{ pname(t, g.p1) }}{% if g.p2_id %}<span class="side">{{ rules.side_labels[0] }}</span>{% endif %}</div>
+  <div class="score">{{ rules.score_text(g) }}</div>
+  <div class="p2 {{ 'win' if w and w == g.p2_id }}">{% if g.p2_id %}{{ pname(t, g.p2) }}<span class="side">{{ rules.side_labels[1] }}</span>{% else %}<span class="muted">—</span>{% endif %}</div>
+</div>
+{%- endmacro -%}

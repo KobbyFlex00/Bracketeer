@@ -1,0 +1,25 @@
+{% extends "public/_tournament.html" %}
+{% from "public/_game.html" import game_row %}
+{% block page %}
+{% if not t.max_round %}
+  <div class="card muted">No rounds have been paired yet.</div>
+{% else %}
+<div class="row between noprint" style="margin-bottom:.75rem">
+  <div class="row">
+    {% if rnd > 1 %}<a class="btn sm" href="?round={{ rnd - 1 }}">‹ Prev</a>{% endif %}
+    <strong>Round {{ rnd }}</strong>{% if games and games[0].stage == 'knockout' %} <span class="badge">Knockout</span>{% endif %}
+    {% if rnd < t.max_round %}<a class="btn sm" href="?round={{ rnd + 1 }}">Next ›</a>{% endif %}
+  </div>
+  <div class="row">
+    <input class="search" type="search" placeholder="Find your game…" data-filter="#games" aria-label="Search">
+    <button class="btn sm" onclick="window.print()">Print</button>
+    {% if t.sport != 'football' %}<a class="btn sm" href="{{ url_for('public.scorecards', slug=t.slug, round=rnd) }}">Scorecards</a>{% endif %}
+  </div>
+</div>
+<h2 class="print-only">{{ t.name }} — Round {{ rnd }}</h2>
+<div class="games" id="games">
+  {% for g in games %}<div data-row>{{ game_row(t, rules, g) }}</div>{% endfor %}
+</div>
+<p class="noprint"><a class="small" href="{{ url_for('public.results_csv', slug=t.slug) }}">Download all results (CSV)</a></p>
+{% endif %}
+{% endblock %}

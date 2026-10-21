@@ -1,11 +1,14 @@
-# Security
+# Secrets
 .env
 
-# Python specific
+# Python
 venv/
+.venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
 
-# Data & Output (Optional, but keeps repo clean)
-tournament.json
+# Local database / legacy build output
+instance/
 output/

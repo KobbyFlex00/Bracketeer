@@ -1,0 +1,32 @@
+{% extends "public/_tournament.html" %}
+{% from "public/_name.html" import pname %}
+{% block page %}
+<div class="row noprint" style="margin-bottom:.75rem">
+  <input class="search" type="search" placeholder="Search…" data-filter="#xt" aria-label="Search">
+</div>
+<div class="card pad0 tablewrap">
+<table class="xt" id="xt">
+  <thead><tr><th class="rank">#</th><th>{{ rules.participant_label }}</th>
+    {% for r in rounds %}<th>R{{ r }}</th>{% endfor %}
+    <th class="num">{{ rules.columns[0][1] }}</th></tr></thead>
+  <tbody>
+  {% for row, cells in grid %}
+    <tr data-row>
+      <td class="rank">{{ row.rank }}</td>
+      <td class="name">{{ pname(t, row.p) }}</td>
+      {% for r in rounds %}
+        {% set c = cells.get(r) %}
+        <td>{% if c %}
+          {% if c.outcome %}<span class="out out-{{ c.outcome }}">{{ c.outcome }}</span>{% endif %}
+          {% if c.game.p2_id %}<span class="muted">{% if t.sport == 'chess' %}{{ 'w' if c.game.p1_id == row.p.id else 'b' }}{% endif %}{{ c.opp_rank }}</span>{% endif %}
+          {% if t.sport == 'scrabble' and c.outcome %}<div class="small muted">{{ rules.score_text(c.game, row.p.id) }}</div>{% endif %}
+        {% else %}<span class="muted">·</span>{% endif %}</td>
+      {% endfor %}
+      <td class="num strong">{{ row.stats[rules.columns[0][0]]|stat(rules, rules.columns[0][0]) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="muted small">Each cell shows the result and the opponent's current rank{% if t.sport == 'chess' %} (w = White, b = Black){% endif %}.</p>
+{% endblock %}
