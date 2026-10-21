@@ -1,80 +1,99 @@
-# 🏆 ATU Scrabble Tournament Engine
+# 🏆 Bracketeer
 
-A robust, fully-featured Scrabble Tournament Management System built for the Accra Technical University (ATU) Scrabble Club. This engine handles everything from live score entry and dynamic Elo rating calculations to automated pairing generation and one-click deployment to AWS.
+A tournament manager for **Scrabble**, **Chess** and **Football**. It started as the
+[ATU Scrabble Club](#credits) tournament engine. Each sport has its own section with its own
+rules, pairings and tables, and the sports never mix.
 
-Built by **George Kobby Osae (Kobby Flex)**.
+Tournament Directors (TDs) run everything from a password-protected web dashboard that works on a phone.
+Players and fans follow the live public pages, which refresh themselves during a tournament.
 
-## ✨ Core Features
+## Features
 
-### 🛠️ TD Web Dashboard (Flask)
-A modern, intuitive web-based Control Center for Tournament Directors to manage events in real-time.
-* **Standard Score Entry:** Rapidly append match results as they come in.
-* **Insert Missing Matches:** Securely wedge forgotten matches back into their correct historical round.
-* **Surgical Match Editing:** Fix mismatches, edit scores, or delete corrupted records without breaking the tournament timeline.
-* **Automated Math Syncing:** The engine dynamically recalculates Wins, Spread, SOS (Sum of Opponents' Scores), and Elo Ratings (Base 1200) from scratch to prevent "Ghost Points."
+| | Scrabble | Chess | Football |
+|---|---|---|---|
+| Formats | Swiss, Round Robin, Double RR, King of the Hill | Swiss, Round Robin, Double RR | League, home & away league, knockout cup, league → knockout play-offs |
+| Ranking | Wins → Spread → SOS → Rating | Points → Buchholz → Sonneborn-Berger → Wins → Rating | Points (3/1/0) → Goal difference → Goals scored |
+| Extras | Scores *or* winner + spread, bye spread, two-club team battle, club standings | 1–0 / ½–½ / 0–1 entry, colour balancing, bye points setting | Penalty shoot-out winners, seeded bracket with byes |
+| Ratings | Elo (K configurable) | Elo (K configurable) | — |
 
-### 🎲 Advanced Pairing Algorithms
-Generate the next round of pairings with a single click based on your preferred format:
-* **Swiss System:** Rank-based pairings that actively prevent repeat matchups.
-* **Round Robin:** Perfect rotational pairings for smaller groups.
-* **King of the Hill (KOTH):** Strict 1v2, 3v4 pairings for high-stakes final rounds.
+For every sport:
+- **Live public site**: standings, pairings/fixtures, crosstable or bracket, and player/team profiles. Live tournaments auto-refresh, and there is a search box.
+- **TD dashboard**:
+  - Create, rename, archive and delete tournaments.
+  - Add players one by one, by pasting a list, or from a CSV.
+  - Withdraw a player without losing their results.
+  - Pair the next round in one click.
+  - Enter or edit results inline.
+  - Fix a game: swap sides, change the pairing, clear or delete it. You can also add a forgotten game or undo a whole round.
+- **Exports**: standings and results as CSV, full JSON backups with restore, and printable pairings and scorecards.
+- **Swiss pairing never repeats a match-up when it can avoid it.** It backtracks instead of falling back to a rematch.
+- **No more "ghost points".** Every stat is computed from the games themselves, so nothing is stored twice.
 
-### 🌐 Automated Static Site Generation & Deployment
-The engine automatically compiles the tournament data into a beautiful, mobile-responsive static website and pushes it live to AWS S3/CloudFront. The generated site includes:
-* **Master Portal:** A lobby linking to all active/past tournaments.
-* **Live Standings:** Real-time leaderboard with Wins, Spread, SOS, and Elo ratings.
-* **Round Pairings:** Clean, easy-to-read board assignments.
-* **Tournament Wallchart:** A professional grid showing everyone's round-by-round trajectory.
-* **Player Profiles:** Clickable, individual stat cards showing a player's exact match history and opponent breakdown.
-* **Team Standings:** Aggregated scores based on club/university affiliation.
+## Free hosting (Render + Neon)
 
-## 🚀 Getting Started
+The whole app runs for free with no expiry date:
+- [Render](https://render.com) free web service runs the app.
+- [Neon](https://neon.tech) free Postgres stores the data.
 
-### Prerequisites
-* Python 3.8+
-* AWS CLI configured with your S3 credentials
-* Required Python packages: `flask`, `jinja2`, `boto3`
+1. **Create the database.** Sign up at neon.tech, create a project, and copy its connection string
+   (`postgresql://…?sslmode=require`).
+2. **Deploy the app.** On render.com choose **New → Blueprint** and select this repository. Render reads
+   `render.yaml` and asks for two values:
+   - `DATABASE_URL`: the Neon connection string from step 1.
+   - `ADMIN_PASSWORD`: the TD login password (8+ characters). The username is `admin`; change
+     `ADMIN_USERNAME` in Render to pick another.
+3. Wait for the deploy to finish, then open `https://<your-app>.onrender.com/admin/` and sign in.
+4. **Bring over the old tournaments.** In the dashboard, use **Import** and upload each file from
+   `legacy_data/`.
 
-### Installation
-1. Clone the repository:
-   ```bash
-   git clone [https://github.com/KobbyFlex00/atu-scrabble-engine.git](https://github.com/KobbyFlex00/atu-scrabble-engine.git)
-   cd atu-scrabble-engine
+Things to know about the free tier:
+- The app sleeps after 15 minutes without visitors, and the first visit after that takes about 30 seconds.
+  On tournament days you can keep it awake with a free monitor at [cron-job.org](https://cron-job.org)
+  pinging `https://<your-app>.onrender.com/healthz` every 10 minutes.
+- To change the TD password, update `ADMIN_PASSWORD` in Render and redeploy.
 
-Install the required dependencies:
+## Run it locally
 
-Bash
-pip install -r requirements.txt
-
-Usage
-Start the local Tournament Director Web Dashboard:
-
-Bash
-python app.py
-
-Then, open your web browser and navigate to http://127.0.0.1:5000 to access the Control Center.
-
-(Note: The original CLI version is still available by running python cli.py if a terminal environment is preferred).
-
-📂 Project Structure
-app.py: The Flask web server and routing logic for the TD Dashboard.
-
-core/models.py: The fundamental data structures (Players, Matches) and surgical math logic.
-
-core/standings.py: Calculates Elo ratings and sorts the leaderboards.
-
-core/pairing.py: The algorithms for Swiss, Round Robin, and KOTH pairings.
-
-core/state.py: Handles JSON database loading/saving.
-
-build.py: Jinja2 static HTML site compiler.
-
-core/deploy.py: Boto3 script for syncing the output/ folder to AWS S3.
-
-templates/: HTML/CSS templates for both the live site and the TD Dashboard.
-
-data/: Local JSON database storage for tournaments.
-
-👨‍💻 Author
-George Kobby Osae, General Secretary (2025/26), ATU Scrabble Club
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+cp .env.example .env            # then edit SECRET_KEY and ADMIN_PASSWORD
+flask db upgrade                # creates instance/bracketeer.db (SQLite) when DATABASE_URL is empty
+flask ensure-admin
+flask import-legacy legacy_data/*.json   # optional: load the old tournaments
+flask run
 ```
+
+Then open http://127.0.0.1:5000 (public site) and http://127.0.0.1:5000/admin/ (TD dashboard).
+
+Tests and lint: `pytest` and `ruff check .` (CI runs both on every push).
+
+## Project structure
+
+```
+bracketeer/
+  __init__.py        app factory
+  config.py          settings from environment variables
+  models.py          Tournament, Participant, Game, AdminUser
+  engine.py          round generation (standings + pairing system → saved games)
+  ratings.py         Elo
+  pairing/           swiss.py, round_robin.py, knockout.py, sides.py (pure, unit-tested)
+  sports/            scrabble.py, chess.py, football.py — scoring, tie-breaks, result entry
+  admin/routes.py    TD dashboard
+  public/routes.py   public pages + CSV
+  backup.py          JSON backup/restore and legacy import
+  templates/ static/
+migrations/          database schema (Flask-Migrate / Alembic)
+tests/               pytest suite
+legacy_data/         tournaments from the old atu-scrabble-engine
+render.yaml          Render deployment blueprint
+```
+
+### Adding a migration after changing models
+```bash
+flask db migrate -m "describe the change" && flask db upgrade
+```
+
+## Credits
+
+Built by **George Kobby Osae (Kobby Flex)**, General Secretary (2025/26), ATU Scrabble Club.
