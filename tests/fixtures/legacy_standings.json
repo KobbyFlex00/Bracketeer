@@ -1,0 +1,197 @@
+{
+ "atu_scrabble_word_wars": [
+  {
+   "name": "AQUILA DELALI",
+   "club": "ATU",
+   "wins": 0.0,
+   "losses": 0.0,
+   "spread": 0,
+   "sos": 0,
+   "rating": 1200
+  },
+  {
+   "name": "STEPHEN APPIAH",
+   "club": "ATU",
+   "wins": 0.0,
+   "losses": 0.0,
+   "spread": 0,
+   "sos": 0,
+   "rating": 1200
+  },
+  {
+   "name": "GEORGE OSAE",
+   "club": "ATU",
+   "wins": 0.0,
+   "losses": 0.0,
+   "spread": 0,
+   "sos": 0,
+   "rating": 1200
+  },
+  {
+   "name": "PERPETUAL DOTSE",
+   "club": "ATU",
+   "wins": 0.0,
+   "losses": 0.0,
+   "spread": 0,
+   "sos": 0,
+   "rating": 1200
+  },
+  {
+   "name": "OLIVIA LARTEVI",
+   "club": "ATU",
+   "wins": 0.0,
+   "losses": 0.0,
+   "spread": 0,
+   "sos": 0,
+   "rating": 1200
+  },
+  {
+   "name": "JUSTICE BONUEDIE",
+   "club": "ATU",
+   "wins": 0.0,
+   "losses": 0.0,
+   "spread": 0,
+   "sos": 0,
+   "rating": 1200
+  },
+  {
+   "name": "THOMAS QUARCOO",
+   "club": "ATU",
+   "wins": 0.0,
+   "losses": 0.0,
+   "spread": 0,
+   "sos": 0,
+   "rating": 1200
+  }
+ ],
+ "back_to_school_tournament": [
+  {
+   "name": "AQUILA DELALI KLU",
+   "club": "ATU",
+   "wins": 4.5,
+   "losses": 1.5,
+   "spread": 936,
+   "sos": 9.5,
+   "rating": 1296
+  },
+  {
+   "name": "GEORGE KOBBY OSAE",
+   "club": "ATU",
+   "wins": 4.0,
+   "losses": 2.0,
+   "spread": 237,
+   "sos": 9.5,
+   "rating": 1228
+  },
+  {
+   "name": "PERPETUAL EYRAM DOTSE",
+   "club": "ATU",
+   "wins": 3.5,
+   "losses": 2.5,
+   "spread": 160,
+   "sos": 14.5,
+   "rating": 1207
+  },
+  {
+   "name": "STEPHEN APPIAH",
+   "club": "ATU",
+   "wins": 3.0,
+   "losses": 3.0,
+   "spread": 306,
+   "sos": 12.0,
+   "rating": 1224
+  },
+  {
+   "name": "THOMAS QUARCOO",
+   "club": "ATU",
+   "wins": 3.0,
+   "losses": 3.0,
+   "spread": -287,
+   "sos": 12.0,
+   "rating": 1190
+  },
+  {
+   "name": "JUSTICE BONUEDIE",
+   "club": "ATU",
+   "wins": 0.0,
+   "losses": 6.0,
+   "spread": -1352,
+   "sos": 14.5,
+   "rating": 1093
+  }
+ ],
+ "the_clash_of_the_word_wizards": [
+  {
+   "name": "Aquila",
+   "club": "ATU",
+   "wins": 8.0,
+   "losses": 0.0,
+   "spread": 957,
+   "sos": 11.0,
+   "rating": 1271
+  },
+  {
+   "name": "Michael",
+   "club": "ANTSC",
+   "wins": 5.0,
+   "losses": 3.0,
+   "spread": 317,
+   "sos": 21.0,
+   "rating": 1220
+  },
+  {
+   "name": "Stephen",
+   "club": "ATU",
+   "wins": 5.0,
+   "losses": 3.0,
+   "spread": 190,
+   "sos": 11.0,
+   "rating": 1219
+  },
+  {
+   "name": "Reuben",
+   "club": "ANTSC",
+   "wins": 4.0,
+   "losses": 4.0,
+   "spread": 94,
+   "sos": 21.0,
+   "rating": 1201
+  },
+  {
+   "name": "Perpetual",
+   "club": "ATU",
+   "wins": 4.0,
+   "losses": 4.0,
+   "spread": -96,
+   "sos": 11.0,
+   "rating": 1198
+  },
+  {
+   "name": "George",
+   "club": "ATU",
+   "wins": 4.0,
+   "losses": 4.0,
+   "spread": -214,
+   "sos": 11.0,
+   "rating": 1199
+  },
+  {
+   "name": "Jamilu",
+   "club": "ANTSC",
+   "wins": 1.0,
+   "losses": 7.0,
+   "spread": -507,
+   "sos": 21.0,
+   "rating": 1145
+  },
+  {
+   "name": "Kelvin",
+   "club": "ANTSC",
+   "wins": 1.0,
+   "losses": 7.0,
+   "spread": -741,
+   "sos": 21.0,
+   "rating": 1148
+  }
+ ]
+}
