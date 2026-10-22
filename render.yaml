@@ -1,5 +1,9 @@
 # Render Blueprint: Dashboard -> New -> Blueprint -> pick this repo.
-# The database lives on Neon's free tier (Render's free Postgres is deleted after 30 days).
+# The database lives on Neon (Render's free Postgres is deleted after 30 days):
+#   Neon project red-voice-54849345 (org org-lingering-fire-17770382), branch "production".
+# Get both connection strings with `neon env pull` (or Neon Console -> Connect):
+#   DATABASE_URL           pooled URL (host has "-pooler"): app traffic from gunicorn
+#   DATABASE_URL_UNPOOLED  direct URL: `flask db upgrade` runs Alembic over this one
 services:
   - type: web
     name: bracketeer
@@ -18,7 +22,9 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        sync: false # paste the Neon connection string when Render asks
+        sync: false # paste the pooled Neon URL (production branch) when Render asks
+      - key: DATABASE_URL_UNPOOLED
+        sync: false # paste the direct (unpooled) Neon URL; used only for migrations
       - key: ADMIN_USERNAME
         value: admin
       - key: ADMIN_PASSWORD

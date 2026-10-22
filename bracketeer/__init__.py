@@ -1,15 +1,21 @@
 import os
 
 from dotenv import load_dotenv
-from flask import Flask
-from werkzeug.middleware.proxy_fix import ProxyFix
 
-from .config import Config
-from .extensions import csrf, db, login_manager, migrate
+# Load env files before .config is imported: Config reads os.environ at class definition.
+# `neon env pull` writes .env.local; values already in the environment (Render) always win.
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+load_dotenv(os.path.join(_ROOT, ".env.local"))
+load_dotenv(os.path.join(_ROOT, ".env"))
+
+from flask import Flask  # noqa: E402
+from werkzeug.middleware.proxy_fix import ProxyFix  # noqa: E402
+
+from .config import Config  # noqa: E402
+from .extensions import csrf, db, login_manager, migrate  # noqa: E402
 
 
 def create_app(config_overrides: dict | None = None) -> Flask:
-    load_dotenv()
     app = Flask(__name__, instance_path=os.path.abspath("instance"))
     app.config.from_object(Config)
     if config_overrides:

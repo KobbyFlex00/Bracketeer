@@ -1,8 +1,8 @@
 import os
 
 
-def _database_url() -> str:
-    url = os.environ.get("DATABASE_URL", "").strip()
+def _database_url(name: str = "DATABASE_URL") -> str:
+    url = os.environ.get(name, "").strip()
     if not url:
         os.makedirs("instance", exist_ok=True)
         return "sqlite:///" + os.path.abspath(os.path.join("instance", "bracketeer.db"))
@@ -21,6 +21,9 @@ class Config:
     PRODUCTION = os.environ.get("BRACKETEER_ENV", "development") == "production"
     SECRET_KEY = os.environ.get("SECRET_KEY") or ("" if PRODUCTION else "dev-only-insecure-key")
     SQLALCHEMY_DATABASE_URI = _database_url()
+    # Neon's pooled URL (PgBouncer) serves the app; Alembic migrations need a direct session,
+    # so they use DATABASE_URL_UNPOOLED when it is set (see migrations/env.py).
+    MIGRATIONS_DATABASE_URI = _database_url("DATABASE_URL_UNPOOLED") if os.environ.get("DATABASE_URL_UNPOOLED") else None
     # Free Postgres tiers (Neon) suspend idle connections, so check them before use.
     SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "pool_recycle": 280}
     SESSION_COOKIE_HTTPONLY = True
