@@ -33,18 +33,29 @@ For every sport:
 
 The whole app runs for free with no expiry date:
 - [Render](https://render.com) free web service runs the app.
-- [Neon](https://neon.tech) free Postgres stores the data.
+- [Neon](https://neon.com) free Postgres stores the data.
 
-1. **Create the database.** Sign up at neon.tech, create a project, and copy its connection string
-   (`postgresql://…?sslmode=require`).
+1. **Get the database URLs.** The database is Neon project `red-voice-54849345`
+   (org `org-lingering-fire-17770382`), branch `production`. With the [Neon CLI](https://neon.com/docs/cli/install)
+   signed in (`neon login`, or `NEON_API_KEY` set), run this in the repo root:
+   ```bash
+   npm i -g neon@latest
+   neon init -y --agent claude-code --org-id org-lingering-fire-17770382 \
+     --project-id red-voice-54849345 --branch production
+   neon deploy        # applies neon.ts and writes DATABASE_URL + DATABASE_URL_UNPOOLED to .env.local
+   ```
+   `.env.local` is git-ignored and loaded automatically by the app. You can also copy both URLs from
+   Neon Console → **Connect** (toggle *Connection pooling* on for the pooled one).
 2. **Deploy the app.** On render.com choose **New → Blueprint** and select this repository. Render reads
-   `render.yaml` and asks for two values:
-   - `DATABASE_URL`: the Neon connection string from step 1.
+   `render.yaml` and asks for three values:
+   - `DATABASE_URL`: the **pooled** Neon URL (host contains `-pooler`). The app uses it.
+   - `DATABASE_URL_UNPOOLED`: the **direct** Neon URL. Only `flask db upgrade` uses it, because
+     migrations need a real session rather than the pooler.
    - `ADMIN_PASSWORD`: the TD login password (8+ characters). The username is `admin`; change
      `ADMIN_USERNAME` in Render to pick another.
 3. Wait for the deploy to finish, then open `https://<your-app>.onrender.com/admin/` and sign in.
 4. **Bring over the old tournaments.** In the dashboard, use **Import** and upload each file from
-   `legacy_data/`.
+   `legacy_data/`, or run `flask import-legacy legacy_data/*.json` locally with `.env.local` pointing at Neon.
 
 Things to know about the free tier:
 - The app sleeps after 15 minutes without visitors, and the first visit after that takes about 30 seconds.

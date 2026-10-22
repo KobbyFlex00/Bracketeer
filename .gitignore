@@ -1,5 +1,9 @@
-# Secrets
+# Secrets (.env.local is written by `neon env pull` / `neon deploy`)
 .env
+.env.local
+.env.*.local
+# Neon CLI link (org/project/branch IDs)
+.neon
 
 # Python
 venv/

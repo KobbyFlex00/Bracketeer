@@ -2,6 +2,7 @@ import logging
 from logging.config import fileConfig
 
 from flask import current_app
+from sqlalchemy import create_engine, pool
 
 from alembic import context
 
@@ -15,7 +16,14 @@ fileConfig(config.config_file_name)
 logger = logging.getLogger('alembic.env')
 
 
+def get_migrations_url():
+    # Neon: run migrations over the direct (unpooled) connection when one is configured.
+    return current_app.config.get('MIGRATIONS_DATABASE_URI')
+
+
 def get_engine():
+    if get_migrations_url():
+        return create_engine(get_migrations_url(), poolclass=pool.NullPool)
     try:
         # this works with Flask-SQLAlchemy<3 and Alchemical
         return current_app.extensions['migrate'].db.get_engine()
