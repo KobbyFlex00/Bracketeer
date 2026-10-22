@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ t.name }} · Dashboard{% endblock %}
+{% block content %}
+<div class="hero">
+  <div class="muted small"><a href="{{ url_for('admin.home', sport=t.sport) }}">← {{ rules.icon }} {{ rules.name }} tournaments</a></div>
+  <div class="row between">
+    <h1 style="margin:0">{{ t.name }} <span class="badge {{ t.status }}">{{ t.status }}</span></h1>
+    <a class="btn sm" href="{{ url_for('public.standings', slug=t.slug) }}" target="_blank" rel="noopener">View public page ↗</a>
+  </div>
+</div>
+<nav class="tabs">
+  {% for key, label in [('overview', 'Overview'), ('participants', rules.participant_plural), ('rounds', 'Rounds & results'), ('settings', 'Settings'), ('export', 'Export')] %}
+    <a href="{{ url_for('admin.tournament', tid=t.id, tab=key) }}" class="{{ 'on' if tab == key }}">{{ label }}</a>
+  {% endfor %}
+</nav>
+{% include "admin/tab_" ~ tab ~ ".html" %}
+{% endblock %}

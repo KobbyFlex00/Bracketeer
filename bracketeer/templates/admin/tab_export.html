@@ -1,0 +1,12 @@
+<div class="cards">
+  <div class="card"><h3>Full backup</h3><p class="muted small">Everything in this tournament as JSON. Restore it from the Dashboard's Import box.</p>
+    <a class="btn primary" href="{{ url_for('admin.export_json', tid=t.id) }}">Download backup</a></div>
+  <div class="card"><h3>Standings (CSV)</h3><p class="muted small">Opens in Excel or Google Sheets.</p>
+    <a class="btn" href="{{ url_for('public.standings_csv', slug=t.slug) }}">Download</a></div>
+  <div class="card"><h3>All results (CSV)</h3><p class="muted small">Every game, round by round.</p>
+    <a class="btn" href="{{ url_for('public.results_csv', slug=t.slug) }}">Download</a></div>
+  {% if t.sport != 'football' and t.max_round %}
+  <div class="card"><h3>Printable scorecards</h3><p class="muted small">One card per game for round {{ t.max_round }}.</p>
+    <a class="btn" href="{{ url_for('public.scorecards', slug=t.slug, round=t.max_round) }}" target="_blank" rel="noopener">Open</a></div>
+  {% endif %}
+</div>

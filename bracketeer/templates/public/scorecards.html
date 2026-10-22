@@ -1,0 +1,22 @@
+{% extends "public/_tournament.html" %}
+{% block page %}
+<div class="row between noprint" style="margin-bottom:.75rem">
+  <a class="btn sm" href="{{ url_for('public.pairings', slug=t.slug, round=rnd) }}">‹ Back to pairings</a>
+  <button class="btn sm primary" onclick="window.print()">Print scorecards</button>
+</div>
+<div class="scorecards">
+{% for g in games %}
+  <div class="scorecard">
+    <div class="row between"><strong>{{ t.name }}</strong><span>Round {{ rnd }} · Board {{ g.board }}</span></div>
+    <div class="grid2" style="margin-top:.6rem">
+      <div><div class="muted small">{{ rules.side_labels[0] }}</div><strong>{{ g.p1.name }}</strong><div class="line"></div></div>
+      <div><div class="muted small">{{ rules.side_labels[1] }}</div><strong>{{ g.p2.name }}</strong><div class="line"></div></div>
+    </div>
+    <div class="muted small" style="margin-top:.6rem">{{ 'Final scores' if t.sport == 'scrabble' else 'Result (1–0, ½–½, 0–1)' }} · Signatures:</div>
+    <div class="grid2"><div class="line"></div><div class="line"></div></div>
+  </div>
+{% else %}
+  <div class="card muted">No games in this round.</div>
+{% endfor %}
+</div>
+{% endblock %}

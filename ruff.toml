@@ -1,0 +1,6 @@
+line-length = 135
+target-version = "py311"
+exclude = ["migrations"]
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP"]

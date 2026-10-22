@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% set active_sport = t.sport %}
+{% set refresh = live %}
+{% block title %}{{ t.name }} · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="hero">
+  <div class="muted small"><a href="{{ url_for('public.sport', sport=t.sport) }}">{{ rules.icon }} {{ rules.name }}</a>{% if t.venue %} · {{ t.venue }}{% endif %}</div>
+  <h1>{{ t.name }} <span class="badge {{ t.status }}">{{ t.status|capitalize }}</span></h1>
+  <div class="muted small">{{ rules.formats.get(t.format, t.format) }} · {{ t.participants|length }} {{ rules.participant_plural|lower }}{% if t.max_round %} · {{ t.max_round }} round{{ 's' if t.max_round != 1 }}{% endif %}{% if live %} · updates every {{ config.REFRESH_SECONDS }}s{% endif %}</div>
+</div>
+<nav class="tabs">
+  {% if not (t.sport == 'football' and t.format == 'knockout') %}
+  <a href="{{ url_for('public.standings', slug=t.slug) }}" class="{{ 'on' if page == 'standings' }}">{{ 'Table' if t.sport == 'football' else 'Standings' }}</a>
+  {% endif %}
+  <a href="{{ url_for('public.pairings', slug=t.slug) }}" class="{{ 'on' if page == 'pairings' }}">{{ 'Fixtures' if t.sport == 'football' else 'Pairings' }}</a>
+  {% if rules.has_crosstable %}<a href="{{ url_for('public.crosstable', slug=t.slug) }}" class="{{ 'on' if page == 'crosstable' }}">Crosstable</a>{% endif %}
+  {% if rules.has_clubs %}<a href="{{ url_for('public.teams', slug=t.slug) }}" class="{{ 'on' if page == 'teams' }}">Clubs</a>{% endif %}
+  {% if rules.has_bracket and t.format in ('knockout', 'league_knockout') %}<a href="{{ url_for('public.bracket', slug=t.slug) }}" class="{{ 'on' if page == 'bracket' }}">Bracket</a>{% endif %}
+</nav>
+{% block page %}{% endblock %}
+{% endblock %}

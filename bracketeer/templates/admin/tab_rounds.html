@@ -1,0 +1,77 @@
+{% set sel = (request.args.get('round')|int) or t.max_round %}
+<div class="card" style="margin-bottom:1rem">
+  {% if t.max_round and not t.round_complete(t.max_round) %}
+    <p style="margin:0">Enter every result for <strong>round {{ t.max_round }}</strong> to unlock pairing round {{ t.max_round + 1 }}.</p>
+  {% else %}
+  <form class="row" method="post" action="{{ url_for('admin.generate', tid=t.id) }}">
+    {% include "admin/_csrf.html" %}
+    <strong>Pair round {{ t.max_round + 1 }}</strong>
+    <select name="system" aria-label="Pairing system" style="width:auto">
+      {% for k, label in rules.pairing_systems.items() %}<option value="{{ k }}" {{ 'selected' if k == default_system }}>{{ label }}</option>{% endfor %}
+    </select>
+    <button class="btn primary" type="submit">Generate pairings</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if rounds %}
+<nav class="tabs">
+  {% for r in rounds|reverse %}<a href="{{ url_for('admin.tournament', tid=t.id, tab='rounds', round=r) }}" class="{{ 'on' if r == sel }}">Round {{ r }}{% if not t.round_complete(r) %} •{% endif %}</a>{% endfor %}
+</nav>
+{% set games = t.games_in_round(sel) %}
+<div class="games">
+{% for g in games %}
+  <div class="entry {{ 'done' if g.decided else 'pending' }}">
+    <div class="row between">
+      <div><span class="muted small">#{{ g.board }}{% if g.stage == 'knockout' %} · KO{% endif %}</span>
+        <strong>{{ g.p1.name }}</strong> <span class="muted small">({{ rules.side_labels[0] }})</span>
+        {% if g.p2 %} vs <strong>{{ g.p2.name }}</strong> <span class="muted small">({{ rules.side_labels[1] }})</span>{% else %} — <span class="muted">bye</span>{% endif %}</div>
+      <strong>{{ rules.score_text(g) if g.decided else '' }}</strong>
+    </div>
+    {% if g.p2 %}{% include "admin/_result_form.html" %}{% endif %}
+    <details style="margin-top:.5rem"><summary class="small">Fix this game</summary>
+      <div class="row" style="margin-top:.5rem">
+        {% for action, label in [('swap', 'Swap sides'), ('clear', 'Clear result')] %}
+          {% if g.p2 or action == 'clear' %}
+          <form class="inline" method="post" action="{{ url_for('admin.update_game', tid=t.id, gid=g.id) }}">{% include "admin/_csrf.html" %}<input type="hidden" name="action" value="{{ action }}"><button class="btn sm" type="submit">{{ label }}</button></form>
+          {% endif %}
+        {% endfor %}
+        <form class="inline" method="post" action="{{ url_for('admin.update_game', tid=t.id, gid=g.id) }}">{% include "admin/_csrf.html" %}<input type="hidden" name="action" value="delete"><button class="btn sm danger" type="submit" data-confirm="Delete this game?">Delete game</button></form>
+      </div>
+      <form class="row" method="post" action="{{ url_for('admin.update_game', tid=t.id, gid=g.id) }}" style="margin-top:.5rem">
+        {% include "admin/_csrf.html" %}<input type="hidden" name="action" value="repair">
+        <select name="p1" style="width:auto">{% for p in t.participants %}<option value="{{ p.id }}" {{ 'selected' if p.id == g.p1_id }}>{{ p.name }}</option>{% endfor %}</select>
+        <span>vs</span>
+        <select name="p2" style="width:auto"><option value="">BYE</option>{% for p in t.participants %}<option value="{{ p.id }}" {{ 'selected' if p.id == g.p2_id }}>{{ p.name }}</option>{% endfor %}</select>
+        <button class="btn sm" type="submit">Change pairing</button>
+      </form>
+    </details>
+  </div>
+{% else %}
+  <div class="card muted">No games in round {{ sel }}.</div>
+{% endfor %}
+</div>
+
+<div class="grid2" style="margin-top:1rem;align-items:start">
+  <form class="card" method="post" action="{{ url_for('admin.add_game', tid=t.id, rnd=sel) }}">
+    {% include "admin/_csrf.html" %}
+    <h3>Add a game to round {{ sel }}</h3>
+    <p class="muted small">For forgotten or manually arranged pairings.</p>
+    <div class="row">
+      <select name="p1" style="width:auto">{% for p in t.participants %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
+      <span>vs</span>
+      <select name="p2" style="width:auto"><option value="">BYE</option>{% for p in t.participants %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
+      {% if t.sport == 'football' %}<select name="stage" style="width:auto"><option value="league">League</option><option value="knockout">Knockout</option></select>{% endif %}
+      <button class="btn sm" type="submit">Add</button>
+    </div>
+  </form>
+  {% if sel == t.max_round %}
+  <form class="card" method="post" action="{{ url_for('admin.remove_round', tid=t.id, rnd=sel) }}">
+    {% include "admin/_csrf.html" %}
+    <h3>Undo round {{ sel }}</h3>
+    <p class="muted small">Deletes every game in this round, results included, so you can pair it again.</p>
+    <button class="btn danger" type="submit" data-confirm="Delete all of round {{ sel }}?">Delete round {{ sel }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}

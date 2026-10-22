@@ -1,0 +1,21 @@
+<div class="grid2" style="align-items:start">
+  <div class="card">
+    <h2>Status</h2>
+    <p>{{ rules.formats.get(t.format, t.format) }} · {{ t.participants|length }} {{ rules.participant_plural|lower }} ({{ active|length }} active) · {{ t.max_round }} round{{ 's' if t.max_round != 1 }} played/paired.</p>
+    {% if t.max_round and not t.round_complete(t.max_round) %}
+      {% set pending = t.games_in_round(t.max_round)|selectattr('result', 'equalto', 'PENDING')|list %}
+      <p><strong>{{ pending|length }}</strong> result{{ 's' if pending|length != 1 }} still to enter for round {{ t.max_round }}.
+        <a href="{{ url_for('admin.tournament', tid=t.id, tab='rounds') }}">Enter results →</a></p>
+    {% else %}
+      <p><a class="btn primary" href="{{ url_for('admin.tournament', tid=t.id, tab='rounds') }}">Pair round {{ t.max_round + 1 }} →</a></p>
+    {% endif %}
+  </div>
+  <div class="card pad0 tablewrap">
+    <table>
+      <thead><tr><th class="rank">#</th><th>{{ rules.participant_label }}</th>{% for key, label, cls in rules.columns[:3] %}<th class="{{ cls }}">{{ label }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for r in standings[:10] %}<tr><td class="rank">{{ r.rank }}</td><td class="name">{{ r.p.name }}</td>
+        {% for key, label, cls in rules.columns[:3] %}{% set v = r.stats[key]|stat(rules, key) %}<td class="{{ cls }}">{{ v|signed if 'signed' in cls else v }}</td>{% endfor %}</tr>
+      {% else %}<tr><td colspan="5" class="muted">No {{ rules.participant_plural|lower }} yet.</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</div>

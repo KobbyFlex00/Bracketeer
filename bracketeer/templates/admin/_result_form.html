@@ -1,0 +1,28 @@
+{# Result entry for one game, specific to the sport. #}
+<form class="result" method="post" action="{{ url_for('admin.update_game', tid=t.id, gid=g.id) }}">
+  {% include "admin/_csrf.html" %}<input type="hidden" name="action" value="result">
+  {% if t.sport == 'chess' %}
+    {% for value, label in rules.RESULT_CHOICES.items() %}
+      <button class="btn sm {{ 'primary' if g.result == value }}" name="result" value="{{ value }}" type="submit">{{ label }}</button>
+    {% endfor %}
+  {% elif t.sport == 'football' %}
+    <div><label class="small">{{ g.p1.name }}</label><input name="score1" inputmode="numeric" value="{{ g.score1 if g.score1 is not none }}" required></div>
+    <div><label class="small">{{ g.p2.name }}</label><input name="score2" inputmode="numeric" value="{{ g.score2 if g.score2 is not none }}" required></div>
+    {% if g.stage == 'knockout' %}
+    <div><label class="small">If level: penalties won by</label>
+      <select name="pen_winner"><option value="">—</option><option value="1" {{ 'selected' if g.pen_winner == 1 }}>{{ g.p1.name }}</option><option value="2" {{ 'selected' if g.pen_winner == 2 }}>{{ g.p2.name }}</option></select></div>
+    {% endif %}
+    <button class="btn sm primary" type="submit">Save</button>
+  {% else %}
+    <div><label class="small">{{ g.p1.name }}</label><input name="score1" inputmode="numeric" value="{{ g.score1 if g.score1 is not none }}" placeholder="score"></div>
+    <div><label class="small">{{ g.p2.name }}</label><input name="score2" inputmode="numeric" value="{{ g.score2 if g.score2 is not none }}" placeholder="score"></div>
+    <div class="muted small" style="align-self:center">or</div>
+    <div><label class="small">Winner</label>
+      <select name="result"><option value="">—</option>
+        <option value="P1" {{ 'selected' if g.result == 'P1' and g.score1 is none }}>{{ g.p1.name }}</option>
+        <option value="P2" {{ 'selected' if g.result == 'P2' and g.score1 is none }}>{{ g.p2.name }}</option>
+        <option value="DRAW" {{ 'selected' if g.result == 'DRAW' and g.score1 is none }}>Draw</option></select></div>
+    <div><label class="small">Spread</label><input name="spread" inputmode="numeric" value="{{ (g.spread|abs) if g.spread is not none and g.score1 is none and g.result != 'DRAW' }}"></div>
+    <button class="btn sm primary" type="submit">Save</button>
+  {% endif %}
+</form>
