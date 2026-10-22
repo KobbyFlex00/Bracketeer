@@ -16,3 +16,4 @@ __pycache__/
 # Local database / legacy build output
 instance/
 output/
+node_modules/
