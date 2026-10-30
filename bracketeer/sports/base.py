@@ -48,6 +48,7 @@ class Sport:
     has_clubs = True
     has_crosstable = True
     has_bracket = False
+    has_ratings = True  # Elo carried across tournaments; football ranks teams by results instead
     default_rating = 1200
     columns: list = []  # (stat key, label, css class)
 
@@ -90,7 +91,7 @@ class Sport:
                 by_pid[pid].append(Entry(g, opp, outcome, side, gf or 0, ga or 0, margin))
         return by_pid
 
-    def standings(self, tournament) -> list[Row]:
+    def standings(self, tournament, career=None) -> list[Row]:
         raise NotImplementedError
 
     def ranked(self, rows: list[Row], key) -> list[Row]:

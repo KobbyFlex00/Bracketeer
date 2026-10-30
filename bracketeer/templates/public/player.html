@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% set active_sport = sport.key %}
+{% block title %}{{ pl.name }} · {{ sport.name }} · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="hero">
+  <div class="muted small"><a href="{{ url_for('public.rankings', sport=sport.key) }}">{{ sport.icon }} {{ sport.name }} rankings</a></div>
+  <h1>{{ pl.name }}</h1>
+  <div class="muted small">{% if pl.club %}{{ pl.club }} · {% endif %}{% if rec %}Ranked {{ rec.position|ordinal }} of {{ total }}{% else %}No games played yet{% endif %}</div>
+</div>
+{% if rec %}
+<div class="tiles">
+  {% if sport.has_ratings %}
+    <div class="card tile"><div class="muted small">Rating</div><strong>{{ rec.rating }}</strong>
+      {% if rec.change %}<span class="small {{ 'up' if rec.change > 0 else 'down' }}">{{ '▲' if rec.change > 0 else '▼' }} {{ rec.change|abs }} last event</span>{% endif %}
+      {% if rec.provisional %}<span class="badge" title="Fewer than 5 rated games">new</span>{% endif %}</div>
+  {% else %}
+    <div class="card tile"><div class="muted small">Points</div><strong>{{ rec.points }}</strong></div>
+  {% endif %}
+  <div class="card tile"><div class="muted small">Record (W–L–D)</div><strong>{{ rec.wins }}–{{ rec.losses }}–{{ rec.draws }}</strong></div>
+  <div class="card tile"><div class="muted small">Win %</div><strong>{{ '%.0f'|format(rec.win_pct) }}%</strong></div>
+  <div class="card tile"><div class="muted small">Tournaments</div><strong>{{ rec.events|length }}</strong></div>
+  {% if rec.titles %}<div class="card tile"><div class="muted small">Titles</div><strong>{{ rec.titles }} 🏆</strong></div>{% endif %}
+  {% if rec.best %}<div class="card tile"><div class="muted small">Best finish</div><strong>{{ rec.best[0]|ordinal }}</strong> <span class="muted small">of {{ rec.best[1] }}</span></div>{% endif %}
+</div>
+
+{% if chart %}
+<div class="card chartcard">
+  <h2>Rating over time</h2>
+  <p class="muted small">After each round played. Dashed lines mark the start of a tournament.</p>
+  <div class="chartwrap">
+    <svg class="rating-chart" viewBox="0 0 {{ chart.w }} {{ chart.h }}" role="img"
+         aria-label="Rating of {{ pl.name }} after each round, from {{ chart.points[0].rating }} to {{ chart.points[-1].rating }}">
+      {% for tk in chart.ticks %}
+        <line class="grid" x1="{{ chart.left }}" x2="{{ chart.right }}" y1="{{ tk.y }}" y2="{{ tk.y }}"></line>
+        <text class="axis" x="{{ chart.left - 6 }}" y="{{ tk.y + 4 }}" text-anchor="end">{{ tk.v }}</text>
+      {% endfor %}
+      {% for s in chart.starts %}
+        <line class="event" x1="{{ s.x }}" x2="{{ s.x }}" y1="8" y2="{{ chart.bottom }}"></line>
+      {% endfor %}
+      <polyline class="line" points="{{ chart.line }}"></polyline>
+      {% set last = chart.points[-1] %}
+      <circle class="end" cx="{{ last.x }}" cy="{{ last.y }}" r="4.5"></circle>
+      <text class="endlabel" x="{{ last.x }}" y="{{ last.y - 10 }}" text-anchor="end">{{ last.rating }}</text>
+      <line class="cross" x1="0" x2="0" y1="8" y2="{{ chart.bottom }}" hidden></line>
+      <circle class="dot" r="4.5" hidden></circle>
+      <rect class="hit" x="{{ chart.left }}" y="0" width="{{ chart.right - chart.left }}" height="{{ chart.bottom }}"
+            data-points='{{ chart.points|tojson }}' tabindex="0" aria-label="Explore ratings"></rect>
+    </svg>
+    <div class="charttip" hidden></div>
+  </div>
+</div>
+{% endif %}
+
+<h2 style="margin-top:1.25rem">Tournaments</h2>
+<div class="card pad0 tablewrap">
+<table>
+  <thead><tr><th>Tournament</th><th class="hide-sm">Date</th><th class="num">Finish</th><th class="num">W–L–D</th>
+    {% if sport.has_ratings %}<th class="num">Rating</th><th class="num">Change</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for e in rec.events|reverse %}
+    <tr>
+      <td class="name"><a href="{{ url_for('public.profile', slug=e.t.slug, pid=e.p.id) }}">{{ e.t.name }}</a>
+        {% if e.t.status != 'finished' %} <span class="badge {{ e.t.status }}">{{ e.t.status }}</span>{% endif %}
+        {% if e.p.name != pl.name %}<div class="muted small">as {{ e.p.name }}</div>{% endif %}</td>
+      <td class="muted hide-sm">{{ e.t.held_on.strftime('%d %b %Y') if e.t.held_on else '' }}</td>
+      <td class="num">{% if e.rank %}{{ e.rank|ordinal }} <span class="muted small">/ {{ e.field }}</span>{% endif %}</td>
+      <td class="num">{{ e.record.W }}–{{ e.record.L }}–{{ e.record.D }}</td>
+      {% if sport.has_ratings %}
+        <td class="num">{{ e.rating_in }} → <strong>{{ e.rating_out }}</strong></td>
+        <td class="num">{% if e.change %}<span class="{{ 'up' if e.change > 0 else 'down' }}">{{ e.change|signed }}</span>{% else %}<span class="muted">0</span>{% endif %}</td>
+      {% endif %}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

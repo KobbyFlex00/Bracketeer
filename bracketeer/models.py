@@ -38,6 +38,7 @@ class Tournament(db.Model):
     venue = db.Column(db.String(120), default="")
     settings = db.Column(db.JSON, nullable=False, default=dict)
     created_at = db.Column(db.DateTime(timezone=True), default=_now)
+    held_on = db.Column(db.Date)  # orders tournaments for career ratings; falls back to created_at
 
     participants = db.relationship(
         "Participant", backref="tournament", cascade="all, delete-orphan", order_by="Participant.id"
@@ -65,11 +66,30 @@ class Tournament(db.Model):
     def setting(self, key, default=None):
         return (self.settings or {}).get(key, default)
 
+    @property
+    def chrono_key(self):
+        created = self.created_at or _now()
+        return (self.held_on or created.date(), created.replace(tzinfo=None), self.id or 0)
+
+
+class Player(db.Model):
+    """One person (or team) across every tournament of a sport; carries their career rating."""
+
+    __tablename__ = "players"
+    id = db.Column(db.Integer, primary_key=True)
+    sport = db.Column(db.String(20), nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    club = db.Column(db.String(120), default="")
+    created_at = db.Column(db.DateTime(timezone=True), default=_now)
+
+    participants = db.relationship("Participant", backref="player", order_by="Participant.id")
+
 
 class Participant(db.Model):
     __tablename__ = "participants"
     id = db.Column(db.Integer, primary_key=True)
     tournament_id = db.Column(db.Integer, db.ForeignKey("tournaments.id"), nullable=False, index=True)
+    player_id = db.Column(db.Integer, db.ForeignKey("players.id"), index=True)
     name = db.Column(db.String(120), nullable=False)
     club = db.Column(db.String(120), default="")
     seed_rating = db.Column(db.Integer, nullable=False, default=1200)

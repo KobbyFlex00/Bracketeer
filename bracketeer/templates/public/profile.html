@@ -3,7 +3,8 @@
 {% block page %}
 <div class="card" style="margin-bottom:1rem">
   <h2>{{ p.name }}{% if not p.active %} <span class="badge">withdrawn</span>{% endif %}</h2>
-  <div class="muted small">{% if p.club %}{{ p.club }} · {% endif %}{% if row %}Rank {{ row.rank }} of {{ total }}{% endif %}{% if t.sport != 'football' %} · Seed rating {{ p.seed_rating }}{% endif %}</div>
+  <div class="muted small">{% if p.club %}{{ p.club }} · {% endif %}{% if row %}Rank {{ row.rank }} of {{ total }}{% endif %}{% if t.sport != 'football' %} · Seed rating {{ p.seed_rating }}{% endif %}
+    {% if p.player_id %} · <a href="{{ url_for('public.player', sport=t.sport, pid=p.player_id) }}">Career &amp; rating history →</a>{% endif %}</div>
   {% if row %}
   <div class="row" style="margin-top:.75rem">
     {% for key, label, cls in rules.columns %}

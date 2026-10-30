@@ -1,0 +1,40 @@
+{# One row per player across all tournaments of a sport. `records` is a list of rankings.Record. #}
+{%- macro leaderboard(sport, records, compact=false) -%}
+<div class="card pad0 tablewrap">
+<table id="board">
+  <thead><tr>
+    <th class="rank">#</th><th>{{ sport.participant_label }}</th>
+    {% if sport.has_clubs and not compact %}<th class="hide-sm">Club</th>{% endif %}
+    {% if sport.has_ratings %}<th class="num">Rating</th><th class="num hide-sm">Last</th>{% else %}<th class="num">Pts</th><th class="num">GD</th>{% endif %}
+    <th class="num hide-sm">Events</th><th class="num hide-sm">W–L{% if sport.key != 'scrabble' %}–D{% endif %}</th><th class="num">Win %</th>
+    {% if sport.key == 'scrabble' and not compact %}<th class="num hide-sm">Avg spread</th>{% endif %}
+    {% if not compact %}<th class="num hide-sm">Titles</th><th class="hide-sm">Best finish</th>{% endif %}
+  </tr></thead>
+  <tbody>
+  {% for r in records %}
+    <tr data-row>
+      <td class="rank">{{ r.position }}</td>
+      <td class="name"><a href="{{ url_for('public.player', sport=sport.key, pid=r.player.id) }}">{{ r.player.name }}</a>{% if sport.has_ratings and r.provisional %} <span class="badge" title="Fewer than 5 rated games">new</span>{% endif %}</td>
+      {% if sport.has_clubs and not compact %}<td class="muted hide-sm">{{ r.player.club or '' }}</td>{% endif %}
+      {% if sport.has_ratings %}
+        <td class="num strong">{{ r.rating }}</td>
+        <td class="num hide-sm">{% if r.change %}<span class="{{ 'up' if r.change > 0 else 'down' }}">{{ '▲' if r.change > 0 else '▼' }} {{ r.change|abs }}</span>{% else %}<span class="muted">–</span>{% endif %}</td>
+      {% else %}
+        <td class="num strong">{{ r.points }}</td><td class="num">{{ r.gd|signed }}</td>
+      {% endif %}
+      <td class="num hide-sm">{{ r.events|length }}</td>
+      <td class="num hide-sm">{{ r.wins }}–{{ r.losses }}{% if sport.key != 'scrabble' %}–{{ r.draws }}{% elif r.draws %} ({{ r.draws }}D){% endif %}</td>
+      <td class="num">{{ '%.0f'|format(r.win_pct) }}%</td>
+      {% if sport.key == 'scrabble' and not compact %}<td class="num hide-sm">{{ ((r.spread / r.played) if r.played else 0)|round|int|signed }}</td>{% endif %}
+      {% if not compact %}
+        <td class="num hide-sm">{{ r.titles or '' }}{% if r.titles %} 🏆{% endif %}</td>
+        <td class="muted hide-sm">{% if r.best %}{{ r.best[0]|ordinal }} of {{ r.best[1] }}{% endif %}</td>
+      {% endif %}
+    </tr>
+  {% else %}
+    <tr><td colspan="10" class="muted">No games played yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{%- endmacro -%}

@@ -9,10 +9,11 @@ from bracketeer.models import Tournament
 
 
 def test_admin_requires_login(client):
-    for url in ("/admin/", "/admin/t/1"):
+    for url in ("/admin/", "/admin/t/1", "/admin/players"):
         resp = client.get(url)
         assert resp.status_code == 302 and "/admin/login" in resp.headers["Location"]
     assert client.post("/admin/tournaments", data={"sport": "chess"}).status_code == 302
+    assert client.post("/admin/players/1", data={"action": "rename", "name": "x"}).status_code == 302
 
 
 def test_bad_login(client):

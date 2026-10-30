@@ -13,6 +13,12 @@ def register_template_helpers(app, sports):
         except (TypeError, ValueError):
             return value
 
+    @app.template_filter("ordinal")
+    def ordinal(n):
+        n = int(n)
+        suffix = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+        return f"{n}{suffix}"
+
     @app.template_filter("stat")
     def stat(value, rules, key):
         return rules.fmt(key, value)

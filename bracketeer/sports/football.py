@@ -19,6 +19,7 @@ class Football(Sport):
     has_clubs = False
     has_crosstable = False
     has_bracket = True
+    has_ratings = False
     columns = [
         ("played", "P", "num"),
         ("won", "W", "num"),
@@ -62,7 +63,7 @@ class Football(Sport):
             a, b = b, a
         return f"{a}–{b}{pens}"
 
-    def standings(self, t):
+    def standings(self, t, career=None):
         entries = self.entries(t, stages=("league",))
         rows = []
         for p in t.participants:

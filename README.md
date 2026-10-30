@@ -14,10 +14,14 @@ Players and fans follow the live public pages, which refresh themselves during a
 | Formats | Swiss, Round Robin, Double RR, King of the Hill | Swiss, Round Robin, Double RR | League, home & away league, knockout cup, league → knockout play-offs |
 | Ranking | Wins → Spread → SOS → Rating | Points → Buchholz → Sonneborn-Berger → Wins → Rating | Points (3/1/0) → Goal difference → Goals scored |
 | Extras | Scores *or* winner + spread, bye spread, two-club team battle, club standings | 1–0 / ½–½ / 0–1 entry, colour balancing, bye points setting | Penalty shoot-out winners, seeded bracket with byes |
-| Ratings | Elo (K configurable) | Elo (K configurable) | — |
+| Ratings | Elo carried across tournaments (K configurable) | Elo carried across tournaments (K configurable) | — (ranked by points across tournaments) |
 
 For every sport:
 - **Live public site**: standings, pairings/fixtures, crosstable or bracket, and player/team profiles. Live tournaments auto-refresh, and there is a search box.
+- **Career ratings & rankings**: each player has one career profile per sport. Their rating carries from one
+  tournament into the next and moves with every round they play. Each sport's page shows the top players, and
+  `/<sport>/rankings` has the full leaderboard (rating, last change, record, win %, titles, best finish). Each
+  player's page has a rating-over-time chart and their tournament history.
 - **TD dashboard**:
   - Create, rename, archive and delete tournaments.
   - Add players one by one, by pasting a list, or from a CSV.
@@ -58,6 +62,10 @@ The whole app runs for free with no expiry date:
 3. Wait for the deploy to finish, then open `https://<your-app>.onrender.com/admin/` and sign in.
 4. **Bring over the old tournaments.** In the dashboard, use **Import** and upload each file from
    `legacy_data/`, or run `flask import-legacy legacy_data/*.json` locally with `.env.local` pointing at Neon.
+5. **Tidy up career profiles.** Entries join a profile automatically when the name matches an earlier one.
+   On **Dashboard → Players & career profiles**, merge spellings of the same person (e.g. "George" into
+   "George Kobby Osae"); the merged spelling is remembered for future tournaments. Give each tournament its
+   date in **Settings**, so ratings carry over in the right order (otherwise the order they were created is used).
 
 Things to know about the free tier:
 - The app sleeps after 15 minutes without visitors, and the first visit after that takes about 30 seconds.
@@ -87,9 +95,11 @@ Tests and lint: `pytest` and `ruff check .` (CI runs both on every push).
 bracketeer/
   __init__.py        app factory
   config.py          settings from environment variables
-  models.py          Tournament, Participant, Game, AdminUser
+  models.py          Tournament, Player, Participant, Game, AdminUser
   engine.py          round generation (standings + pairing system → saved games)
-  ratings.py         Elo
+  ratings.py         Elo, replayed across a sport's tournaments in date order (career ratings)
+  players.py         linking tournament entries to career profiles; merge
+  rankings.py        cross-tournament leaderboards and player records
   pairing/           swiss.py, round_robin.py, knockout.py, sides.py (pure, unit-tested)
   sports/            scrabble.py, chess.py, football.py — scoring, tie-breaks, result entry
   admin/routes.py    TD dashboard

@@ -1,6 +1,7 @@
 import csv
 import io
 import json
+from datetime import date
 
 from flask import Blueprint, Response, abort, flash, redirect, render_template, request, url_for
 from flask_login import login_required
@@ -8,7 +9,9 @@ from flask_login import login_required
 from ..backup import export_tournament, import_data, name_from_filename
 from ..engine import PairingError, delete_round, generate_round, unique_slug
 from ..extensions import db
-from ..models import PENDING, Game, Participant, Tournament
+from ..models import PENDING, Game, Participant, Player, Tournament
+from ..players import drop_if_empty, link, merge, relink_on_rename
+from ..ratings import career_ratings
 from ..sports import SPORTS
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -47,6 +50,16 @@ def _rating(value, default):
         raise ValueError("Rating must be a whole number.") from None
 
 
+def _date(value):
+    value = (value or "").strip()
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        raise ValueError("Date must look like 2026-03-14.") from None
+
+
 def default_system(t):
     if t.sport == "football":
         return {"double_league": "double_rr", "knockout": "knockout"}.get(t.format, "rr")
@@ -76,11 +89,12 @@ def create_tournament():
         fmt = request.form.get("format")
         if fmt not in rules.formats:
             raise ValueError("Pick a format.")
+        held_on = _date(request.form.get("held_on"))
     except ValueError as e:
         flash(str(e), "danger")
         return redirect(url_for("admin.home", sport=sport_key))
     t = Tournament(name=name, slug=unique_slug(name), sport=rules.key, format=fmt, status="upcoming",
-                   venue=(request.form.get("venue") or "").strip()[:120], settings={})
+                   venue=(request.form.get("venue") or "").strip()[:120], settings={}, held_on=held_on)
     db.session.add(t)
     db.session.commit()
     flash(f"Created {t.name}. Add {rules.participant_plural.lower()} next.", "success")
@@ -131,6 +145,8 @@ def update_settings(tid):
         if f.get("status") in STATUSES:
             t.status = f["status"]
         t.venue = (f.get("venue") or "").strip()[:120]
+        if "held_on" in f:
+            t.held_on = _date(f.get("held_on"))
         settings = dict(t.settings or {})
         for key, cast in (("bye_spread", int), ("bye_points", float), ("elo_k", int), ("ko_teams", int),
                           ("win_points", int), ("rr_offset", int)):
@@ -140,7 +156,8 @@ def update_settings(tid):
             settings["team_battle"] = bool(f.get("team_battle"))
         t.settings = settings
     except ValueError as e:
-        flash(str(e) if "required" in str(e) or "long" in str(e) else "Settings must be numbers.", "danger")
+        known = any(w in str(e) for w in ("required", "long", "Date"))
+        flash(str(e) if known else "Settings must be numbers.", "danger")
         return _back(t, "settings")
     db.session.commit()
     flash("Settings saved.", "success")
@@ -168,12 +185,61 @@ def export_json(tid):
                     headers={"Content-Disposition": f'attachment; filename="{t.slug}-backup.json"'})
 
 
+# ---------- players (career profiles) ----------
+
+@bp.route("/players")
+def players():
+    sport = request.args.get("sport", "scrabble")
+    if sport not in SPORTS:
+        sport = "scrabble"
+    rules = SPORTS[sport]
+    career = career_ratings(sport) if rules.has_ratings else None
+    rows = []
+    for pl in Player.query.filter_by(sport=sport).order_by(Player.name).all():
+        names = sorted({p.name for p in pl.participants} - {pl.name})
+        rating = int(round(career.rating[pl.id])) if career is not None and pl.id in career.rating else None
+        rows.append({"pl": pl, "aliases": names, "events": len(pl.participants), "rating": rating})
+    return render_template("admin/players.html", sport=rules, rows=rows)
+
+
+@bp.route("/players/<int:plid>", methods=["POST"])
+def manage_player(plid):
+    pl = db.get_or_404(Player, plid)
+    action = request.form.get("action")
+    try:
+        if action == "rename":
+            pl.name = _clean_name(request.form.get("name"))
+            flash(f"Renamed to {pl.name}.", "success")
+        elif action == "merge":
+            target = db.session.get(Player, int(request.form.get("into") or 0))
+            if target is None:
+                raise ValueError("Pick who to merge into.")
+            moved = merge(pl, target)
+            flash(f"Merged {pl.name} into {target.name} ({moved} tournament entr{'y' if moved == 1 else 'ies'} moved).", "success")
+        else:
+            raise ValueError("Unknown action.")
+    except ValueError as e:
+        db.session.rollback()
+        flash(str(e), "danger")
+        return redirect(url_for("admin.players", sport=pl.sport))
+    db.session.commit()
+    return redirect(url_for("admin.players", sport=pl.sport))
+
+
 # ---------- participants ----------
 
-def _add_participant(t, name, club, rating):
-    p = Participant(tournament=t, name=name, club=club, seed_rating=rating)
+def _add_participant(t, name, club, rating, career=None):
+    """rating=None: a returning player starts from their carried-over rating, a new one from the sport default."""
+    p = Participant(tournament=t, name=name, club=club, seed_rating=rating or t.rules.default_rating)
     db.session.add(p)
+    player = link(p, t.sport)
+    if rating is None and career is not None and player.id in career.rating:
+        p.seed_rating = int(round(career.rating[player.id]))
     return p
+
+
+def _career(t):
+    return career_ratings(t.sport) if t.rules.has_ratings else None
 
 
 @bp.route("/t/<int:tid>/participants", methods=["POST"])
@@ -183,7 +249,7 @@ def add_participant(tid):
     try:
         name = _clean_name(request.form.get("name"), upper=upper)
         club = " ".join((request.form.get("club") or "").split())[:120]
-        _add_participant(t, name, club.upper() if upper else club, _rating(request.form.get("rating"), t.rules.default_rating))
+        _add_participant(t, name, club.upper() if upper else club, _rating(request.form.get("rating"), None), _career(t))
     except ValueError as e:
         flash(str(e), "danger")
         return _back(t, "participants")
@@ -202,6 +268,7 @@ def bulk_participants(tid):
         text = upload.stream.read().decode("utf-8-sig", errors="replace")
     upper = t.sport == "scrabble"
     added, errors = 0, []
+    career = _career(t)
     for i, row in enumerate(csv.reader(io.StringIO(text)), 1):
         cells = [c.strip() for c in row]
         if not cells or not cells[0] or cells[0].lower() == "name":
@@ -209,8 +276,8 @@ def bulk_participants(tid):
         try:
             name = _clean_name(cells[0], upper=upper)
             club = cells[1] if len(cells) > 1 else ""
-            rating = _rating(cells[2] if len(cells) > 2 else "", t.rules.default_rating)
-            _add_participant(t, name, club.upper() if upper else club, rating)
+            rating = _rating(cells[2] if len(cells) > 2 else "", None)
+            _add_participant(t, name, club.upper() if upper else club, rating, career)
             added += 1
         except ValueError as e:
             errors.append(f"line {i}: {e}")
@@ -231,6 +298,7 @@ def manage_participant(tid, pid):
     if action == "edit":
         try:
             upper = t.sport == "scrabble"
+            old_name = p.name
             p.name = _clean_name(request.form.get("name"), upper=upper)
             club = " ".join((request.form.get("club") or "").split())[:120]
             p.club = club.upper() if upper else club
@@ -238,6 +306,8 @@ def manage_participant(tid, pid):
         except ValueError as e:
             flash(str(e), "danger")
             return _back(t, "participants")
+        if p.player is None or p.name.casefold() != old_name.casefold():
+            relink_on_rename(p, t.sport)
         flash(f"Updated {p.name}.", "success")
     elif action == "toggle":
         p.active = not p.active
@@ -246,7 +316,9 @@ def manage_participant(tid, pid):
         if p.has_games():
             flash(f"{p.name} has games recorded. Withdraw them instead so results stay consistent.", "danger")
             return _back(t, "participants")
+        player = p.player
         db.session.delete(p)
+        drop_if_empty(player)
         flash("Removed.", "success")
     db.session.commit()
     return _back(t, "participants")
