@@ -49,3 +49,19 @@ document.querySelectorAll(".rating-chart .hit").forEach(function (hit) {
     if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); show(idx + (e.key === "ArrowLeft" ? -1 : 1)); }
   });
 });
+// Light/dark toggle: remembers the choice in this browser; without one the device setting applies.
+(function () {
+  var btn = document.querySelector("[data-theme-toggle]"), root = document.documentElement;
+  if (!btn) return;
+  var dark = window.matchMedia("(prefers-color-scheme: dark)");
+  function current() { return root.dataset.theme || (dark.matches ? "dark" : "light"); }
+  function label() { btn.setAttribute("aria-label", current() === "dark" ? "Switch to light mode" : "Switch to dark mode"); }
+  btn.addEventListener("click", function () {
+    var next = current() === "dark" ? "light" : "dark";
+    root.dataset.theme = next;
+    try { localStorage.setItem("theme", next); } catch (e) {}
+    label();
+  });
+  if (dark.addEventListener) dark.addEventListener("change", label);
+  label();
+})();

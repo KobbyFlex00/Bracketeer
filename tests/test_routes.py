@@ -131,3 +131,9 @@ def test_unknown_pages_404(client):
     assert client.get("/t/nope").status_code == 404
     assert client.get("/tennis").status_code == 404
     assert client.get("/healthz").json == {"ok": True}
+
+
+def test_theme_toggle_on_every_page(client):
+    for url in ("/", "/scrabble", "/scrabble/rankings", "/admin/login"):
+        page = client.get(url).data
+        assert b"data-theme-toggle" in page and b'localStorage.getItem("theme")' in page, url
