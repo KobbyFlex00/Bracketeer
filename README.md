@@ -40,10 +40,12 @@ The whole app runs for free with no expiry date:
    signed in (`neon login`, or `NEON_API_KEY` set), run this in the repo root:
    ```bash
    npm i -g neon@latest
-   neon init -y --agent claude-code --org-id org-lingering-fire-17770382 \
-     --project-id red-voice-54849345 --branch production
+   neon link --org-id org-lingering-fire-17770382 --project-id red-voice-54849345 --branch production -y
    neon deploy        # applies neon.ts and writes DATABASE_URL + DATABASE_URL_UNPOOLED to .env.local
    ```
+   `neon.ts` declares the provisioned extras (Neon Auth, Object Storage bucket `assets`, an empty
+   `functions` slot). The app itself uses only Postgres. `aiGateway` is commented out because the
+   Free plan rejects it; uncomment it after upgrading.
    `.env.local` is git-ignored and loaded automatically by the app. You can also copy both URLs from
    Neon Console → **Connect** (toggle *Connection pooling* on for the pooled one).
 2. **Deploy the app.** On render.com choose **New → Blueprint** and select this repository. Render reads
