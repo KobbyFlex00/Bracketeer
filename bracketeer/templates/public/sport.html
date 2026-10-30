@@ -1,8 +1,18 @@
 {% extends "base.html" %}
+{% from "public/_leaderboard.html" import leaderboard %}
 {% set active_sport = sport.key %}
 {% block title %}{{ sport.name }} · {{ SITE_NAME }}{% endblock %}
 {% block content %}
-<div class="hero"><h1>{{ sport.icon }} {{ sport.name }} tournaments</h1></div>
+<div class="hero"><h1>{{ sport.icon }} {{ sport.name }}</h1></div>
+<nav class="tabs">
+  <a href="{{ url_for('public.sport', sport=sport.key) }}" class="on">Tournaments</a>
+  <a href="{{ url_for('public.rankings', sport=sport.key) }}">Rankings</a>
+</nav>
+{% if top %}
+<div class="row between" style="margin-bottom:.5rem"><h2 style="margin:0">Top {{ sport.participant_plural|lower }}</h2>
+  <a href="{{ url_for('public.rankings', sport=sport.key) }}">Full rankings →</a></div>
+{{ leaderboard(sport, top, compact=true) }}
+{% endif %}
 {% set any_t = namespace(found=false) %}
 {% for status, ts in sections if ts %}
   {% set any_t.found = true %}

@@ -1,5 +1,5 @@
 from ..models import BYE, DRAW, P1, P2
-from ..ratings import elo_ratings
+from ..ratings import career_ratings
 from .base import Row, Sport
 
 
@@ -44,10 +44,10 @@ class Chess(Sport):
             text = "–".join(reversed(text.split("–")))
         return text
 
-    def standings(self, t):
+    def standings(self, t, career=None):
         entries = self.entries(t)
         bye_points = float(t.setting("bye_points", 1))
-        ratings = elo_ratings({p.id: p.seed_rating for p in t.participants}, t.games, k=t.setting("elo_k", 20))
+        career = career or career_ratings(t.sport)  # ratings carried over from earlier tournaments
         rows = {}
         for p in t.participants:
             es = entries[p.id]
@@ -57,7 +57,7 @@ class Chess(Sport):
                 "points": pts,
                 "wins": sum(1 for e in es if e.outcome == "W"),
                 "whites": sum(1 for e in es if e.opp_id and e.side == 1),
-                "rating": ratings.get(p.id, p.seed_rating),
+                "rating": career.rating_of(p),
             })
         for r in rows.values():
             opp = [(e, rows[e.opp_id]) for e in r.entries if e.opp_id in rows]

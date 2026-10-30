@@ -5,7 +5,9 @@ from flask import Blueprint, Response, abort, render_template, request
 
 from ..engine import champion, knockout_rounds
 from ..extensions import db
-from ..models import Participant, Tournament
+from ..models import Participant, Player, Tournament
+from ..rankings import player_record, sport_records
+from ..ratings import career_ratings
 from ..sports import SPORTS
 
 bp = Blueprint("public", __name__)
@@ -46,7 +48,50 @@ def home():
 def sport(sport):
     ts = Tournament.query.filter_by(sport=sport).order_by(Tournament.created_at.desc()).all()
     sections = [(s, [t for t in ts if t.status == s]) for s in ("live", "upcoming", "finished")]
-    return render_template("public/sport.html", sport=SPORTS[sport], sections=sections)
+    return render_template("public/sport.html", sport=SPORTS[sport], sections=sections, top=sport_records(sport)[:10])
+
+
+@bp.route("/<any(scrabble, chess, football):sport>/rankings")
+def rankings(sport):
+    return render_template("public/rankings.html", sport=SPORTS[sport], records=sport_records(sport))
+
+
+@bp.route("/<any(scrabble, chess, football):sport>/players/<int:pid>")
+def player(sport, pid):
+    pl = db.session.get(Player, pid)
+    if pl is None or pl.sport != sport:
+        abort(404)
+    rec, records = player_record(pl)
+    history = career_ratings(sport).history.get(pl.id, []) if SPORTS[sport].has_ratings else []
+    return render_template("public/player.html", sport=SPORTS[sport], pl=pl, rec=rec, total=len(records),
+                           chart=_rating_chart(history))
+
+
+def _rating_chart(history, width=640, height=200, pad=(16, 12, 8, 44)):
+    """SVG geometry for the rating line: one point per rated round, tournaments marked along the x axis."""
+    if len(history) < 2:
+        return None
+    top, right, bottom, left = pad
+    values = [r for _, _, r in history]
+    lo, hi = min(values), max(values)
+    span = max(hi - lo, 40)
+    lo, hi = lo - span * 0.1, hi + span * 0.1
+    step = (width - left - right) / (len(history) - 1)
+
+    def y(v):
+        return round(top + (hi - v) / (hi - lo) * (height - top - bottom), 1)
+
+    points = [{"x": round(left + i * step, 1), "y": y(r), "rating": r, "t": t.name,
+               "label": "start" if rnd == 0 else f"round {rnd}"} for i, (t, rnd, r) in enumerate(history)]
+    ticks = sorted({round((lo + (hi - lo) * f) / 10) * 10 for f in (0.15, 0.5, 0.85)})
+    starts, seen = [], set()
+    for pt, (t, _, _) in zip(points, history, strict=True):
+        if t.id not in seen:
+            seen.add(t.id)
+            starts.append({"x": pt["x"], "name": t.name})
+    return {"w": width, "h": height, "points": points, "left": left, "right": width - right,
+            "bottom": height - bottom, "line": " ".join(f"{p['x']},{p['y']}" for p in points),
+            "ticks": [{"y": y(v), "v": v} for v in ticks if lo <= v <= hi], "starts": starts}
 
 
 @bp.route("/t/<slug>")

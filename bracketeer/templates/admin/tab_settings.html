@@ -4,6 +4,8 @@
   <div class="grid2">
     <div class="field"><label for="sn">Name</label><input id="sn" name="name" value="{{ t.name }}" required maxlength="120"></div>
     <div class="field"><label for="sv">Venue</label><input id="sv" name="venue" value="{{ t.venue or '' }}" maxlength="120"></div>
+    <div class="field"><label for="sd">Date</label><input id="sd" name="held_on" type="date" value="{{ t.held_on.isoformat() if t.held_on else '' }}">
+      <div class="muted small">Ratings carry over in date order. Without a date, the order the tournament was created is used.</div></div>
     <div class="field"><label for="sf">Format</label><select id="sf" name="format">{% for k, label in rules.formats.items() %}<option value="{{ k }}" {{ 'selected' if k == t.format }}>{{ label }}</option>{% endfor %}</select></div>
     <div class="field"><label for="ss">Status</label><select id="ss" name="status">{% for s in statuses %}<option value="{{ s }}" {{ 'selected' if s == t.status }}>{{ s|capitalize }}</option>{% endfor %}</select>
       <div class="muted small">“Live” pages auto-refresh for spectators.</div></div>

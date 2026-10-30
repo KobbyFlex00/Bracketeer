@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Players · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="hero"><h1>{{ sport.participant_plural }}</h1>
+  <p class="muted">Each {{ sport.participant_label|lower }} has one career profile per sport, which carries their
+  {% if sport.has_ratings %}rating and {% endif %}record from tournament to tournament. New entries join a profile
+  automatically when the name matches an earlier one. When the same person was entered under different spellings,
+  <strong>merge</strong> them: the merged spelling is remembered for future tournaments.</p></div>
+<nav class="tabs">
+  {% for key, s in SPORTS.items() %}
+    <a href="{{ url_for('admin.players', sport=key) }}" class="{{ 'on' if sport.key == key }}">{{ s.icon }} {{ s.name }}</a>
+  {% endfor %}
+</nav>
+<div class="row between" style="margin-bottom:.5rem"><span class="muted small">{{ rows|length }} profiles</span>
+  <input class="search" type="search" placeholder="Search…" data-filter="#players" aria-label="Search"></div>
+<div class="card pad0 tablewrap">
+<table id="players">
+  <thead><tr><th>Name</th><th class="hide-sm">Also entered as</th><th class="num">Events</th>{% if sport.has_ratings %}<th class="num">Rating</th>{% endif %}<th></th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr data-row>
+      <td class="name"><a href="{{ url_for('public.player', sport=sport.key, pid=r.pl.id) }}">{{ r.pl.name }}</a>
+        {% if r.pl.club %}<div class="muted small">{{ r.pl.club }}</div>{% endif %}</td>
+      <td class="muted small hide-sm" style="white-space:normal">{{ r.aliases|join(', ') }}</td>
+      <td class="num">{{ r.events }}</td>
+      {% if sport.has_ratings %}<td class="num">{{ r.rating if r.rating is not none else '–' }}</td>{% endif %}
+      <td class="right">
+        <details class="inline"><summary class="small">Rename</summary>
+          <form method="post" action="{{ url_for('admin.manage_player', plid=r.pl.id) }}" class="row" style="margin-top:.5rem">
+            {% include "admin/_csrf.html" %}<input type="hidden" name="action" value="rename">
+            <input name="name" value="{{ r.pl.name }}" required maxlength="120" style="width:13rem" aria-label="New name">
+            <button class="btn sm primary" type="submit">Save</button>
+          </form>
+        </details>
+        {% if rows|length > 1 %}
+        <details class="inline"><summary class="small">Merge</summary>
+          <form method="post" action="{{ url_for('admin.manage_player', plid=r.pl.id) }}" class="row" style="margin-top:.5rem">
+            {% include "admin/_csrf.html" %}<input type="hidden" name="action" value="merge">
+            <select name="into" required style="width:13rem" aria-label="Same person as">
+              <option value="">Same person as…</option>
+              {% for o in rows if o.pl.id != r.pl.id %}<option value="{{ o.pl.id }}">{{ o.pl.name }}{% if o.pl.club %} ({{ o.pl.club }}){% endif %}</option>{% endfor %}
+            </select>
+            <button class="btn sm" type="submit" data-confirm="Merge {{ r.pl.name }} into the chosen profile? Their tournaments move over and this profile is removed.">Merge</button>
+          </form>
+        </details>
+        {% endif %}
+      </td>
+    </tr>
+  {% else %}<tr><td colspan="5" class="muted">No {{ sport.participant_plural|lower }} yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

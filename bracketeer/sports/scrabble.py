@@ -1,5 +1,5 @@
 from ..models import BYE, DRAW, P1, P2
-from ..ratings import elo_ratings
+from ..ratings import career_ratings
 from .base import Row, Sport, _int
 
 BYE_SPREAD = 50
@@ -62,9 +62,9 @@ class Scrabble(Sport):
         spread = -(game.spread or 0) if flip else (game.spread or 0)
         return f"{spread:+d}"
 
-    def standings(self, t):
+    def standings(self, t, career=None):
         entries = self.entries(t)
-        ratings = elo_ratings({p.id: p.seed_rating for p in t.participants}, t.games, k=t.setting("elo_k", 20))
+        career = career or career_ratings(t.sport)  # ratings carried over from earlier tournaments
         rows = {}
         for p in t.participants:
             es = entries[p.id]
@@ -74,7 +74,7 @@ class Scrabble(Sport):
                 "wins": wins,
                 "losses": len(es) - wins,
                 "spread": sum(e.margin for e in es),
-                "rating": ratings.get(p.id, p.seed_rating),
+                "rating": career.rating_of(p),
             })
         for r in rows.values():
             # SOS = sum of opponents' wins, counted once per game played against them.

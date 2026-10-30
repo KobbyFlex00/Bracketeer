@@ -126,6 +126,24 @@ details > summary { cursor: pointer; color: var(--accent); font-weight: 500; }
 .scorecard { border: 1px dashed var(--border); padding: .75rem; border-radius: 8px; background: var(--surface); break-inside: avoid; }
 .scorecard .line { border-bottom: 1px solid var(--muted); height: 1.8rem; margin-top: .4rem; }
 
+/* rankings & career */
+.up { color: var(--win); font-weight: 600; } .down { color: var(--loss); font-weight: 600; }
+.tiles { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); margin-bottom: 1rem; }
+.tile strong { display: block; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.chartwrap { position: relative; overflow-x: auto; }
+.rating-chart { display: block; width: 100%; min-width: 520px; height: auto; overflow: visible; }  /* scroll, don't shrink the labels */
+.rating-chart .grid { stroke: var(--border); stroke-width: 1; }
+.rating-chart .event { stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 4; }
+.rating-chart .axis { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.rating-chart .line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.rating-chart .end, .rating-chart .dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
+.rating-chart .endlabel { fill: var(--text); font-size: 12px; font-weight: 700; }
+.rating-chart .cross { stroke: var(--muted); stroke-width: 1; }
+.rating-chart .hit { fill: transparent; cursor: crosshair; outline: none; }
+.charttip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: var(--shadow); padding: .35rem .55rem; font-size: .8rem; width: max-content; max-width: min(320px, 90%); transform: translate(-50%, calc(-100% - 10px)); }
+.charttip strong { font-variant-numeric: tabular-nums; }
+
 @media (max-width: 560px) {
   h1 { font-size: 1.35rem; }
   .game { grid-template-columns: 1fr auto 1fr; }

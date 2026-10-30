@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Dashboard · {{ SITE_NAME }}{% endblock %}
 {% block content %}
-<div class="hero"><h1>TD Dashboard</h1><p class="muted">Each sport keeps its own tournaments.</p></div>
+<div class="hero row between"><div><h1>TD Dashboard</h1><p class="muted" style="margin:0">Each sport keeps its own tournaments.</p></div>
+  <a class="btn" href="{{ url_for('admin.players', sport=sport.key) }}">{{ sport.participant_plural }} &amp; career profiles</a></div>
 <nav class="tabs">
   {% for key, s in SPORTS.items() %}
     <a href="{{ url_for('admin.home', sport=key) }}" class="{{ 'on' if sport.key == key }}">{{ s.icon }} {{ s.name }} <span class="badge">{{ counts[key] }}</span></a>
@@ -12,7 +13,7 @@
     {% for t in tournaments %}
       <a class="card sportcard" href="{{ url_for('admin.tournament', tid=t.id) }}">
         <div class="row between"><h3 style="margin:0">{{ t.name }}</h3><span class="badge {{ t.status }}">{{ t.status }}</span></div>
-        <div class="muted small">{{ sport.formats.get(t.format, t.format) }} · {{ t.participants|length }} {{ sport.participant_plural|lower }} · {{ t.max_round }} round{{ 's' if t.max_round != 1 }}</div>
+        <div class="muted small">{% if t.held_on %}{{ t.held_on.strftime('%d %b %Y') }} · {% endif %}{{ sport.formats.get(t.format, t.format) }} · {{ t.participants|length }} {{ sport.participant_plural|lower }} · {{ t.max_round }} round{{ 's' if t.max_round != 1 }}</div>
       </a>
     {% else %}
       <div class="card muted">No {{ sport.name }} tournaments yet — create one.</div>
@@ -27,6 +28,8 @@
       <div class="field"><label for="f">Format</label>
         <select id="f" name="format">{% for k, label in sport.formats.items() %}<option value="{{ k }}">{{ label }}</option>{% endfor %}</select></div>
       <div class="field"><label for="v">Venue (optional)</label><input id="v" name="venue" maxlength="120"></div>
+      <div class="field"><label for="d">Date (optional)</label><input id="d" name="held_on" type="date">
+        <div class="muted small">Puts tournaments in order when ratings carry over.</div></div>
       <button class="btn primary" type="submit">Create</button>
     </form>
     <form class="card" method="post" action="{{ url_for('admin.import_file') }}" enctype="multipart/form-data">

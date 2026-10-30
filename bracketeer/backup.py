@@ -1,9 +1,11 @@
 """JSON backup/restore, plus import of files from the old atu-scrabble-engine (data/*.json)."""
 import os
+from datetime import date
 
 from .engine import unique_slug
 from .extensions import db
 from .models import BYE, DRAW, P1, P2, RESULTS, Game, Participant, Tournament
+from .players import link
 from .sports import SPORTS
 
 BACKUP_VERSION = 1
@@ -15,6 +17,7 @@ def export_tournament(t: Tournament) -> dict:
         "tournament": {
             "name": t.name, "sport": t.sport, "format": t.format, "status": t.status,
             "venue": t.venue or "", "settings": t.settings or {},
+            "held_on": t.held_on.isoformat() if t.held_on else None,
         },
         "participants": [
             {"id": p.id, "name": p.name, "club": p.club or "", "seed_rating": p.seed_rating, "active": p.active}
@@ -43,6 +46,7 @@ def import_data(data, fallback_name: str = "Imported Tournament") -> Tournament:
     t = Tournament(
         name=info["name"], slug=unique_slug(info["name"]), sport=info["sport"], format=info["format"],
         status=info.get("status", "upcoming"), venue=info.get("venue", ""), settings=info.get("settings") or {},
+        held_on=date.fromisoformat(info["held_on"]) if info.get("held_on") else None,
     )
     db.session.add(t)
     id_map = {}
@@ -50,6 +54,7 @@ def import_data(data, fallback_name: str = "Imported Tournament") -> Tournament:
         new = Participant(tournament=t, name=p["name"], club=p.get("club", ""),
                           seed_rating=int(p.get("seed_rating", 1200)), active=bool(p.get("active", True)))
         db.session.add(new)
+        link(new, t.sport)
         id_map[p["id"]] = new
     for g in data.get("games", []):
         if g.get("result") not in RESULTS or g.get("p1") not in id_map:
@@ -71,6 +76,7 @@ def import_legacy(players: list, name: str) -> Tournament:
     for p in players:
         new = Participant(tournament=t, name=p["name"], club=p.get("club", "") or "", seed_rating=int(p.get("rating", 1200)))
         db.session.add(new)
+        link(new, t.sport)
         by_old_id[p["id"]] = new
     max_round = max((len(p.get("history", [])) for p in players), default=0)
     for r in range(max_round):
