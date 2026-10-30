@@ -1,16 +1,19 @@
 {% extends "base.html" %}
+{% from "_sport.html" import tile_word, sport_mark with context %}
 {% block content %}
 <div class="hero">
-  <h1>Tournaments</h1>
-  <p class="muted">Live standings, pairings and results. Pick a sport.</p>
+  <h1>Pick your game</h1>
+  <p class="muted" style="margin:0">Live standings, pairings, results and rankings for every tournament.</p>
 </div>
-<div class="cards">
+<div class="sportpanels">
   {% for key, s in SPORTS.items() %}
-  <a class="card sportcard" href="{{ url_for('public.sport', sport=key) }}">
-    <div class="icon">{{ s.icon }}</div>
+  {% set ts = groups[key] %}
+  {% set n_live = ts|selectattr('status', 'equalto', 'live')|list|length %}
+  <a class="banner sportpanel" data-sport="{{ key }}" href="{{ url_for('public.sport', sport=key) }}">
+    {% if key == 'scrabble' %}{{ tile_word(s.name) }}{% else %}{{ sport_mark(key) }}{% endif %}
     <h2>{{ s.name }}</h2>
-    {% set ts = groups[key] %}
-    <div class="muted small">{{ ts|length }} tournament{{ 's' if ts|length != 1 }}{% set n = ts|selectattr('status', 'equalto', 'live')|list|length %}{% if n %} · <span class="badge live">{{ n }} live</span>{% endif %}</div>
+    <div class="muted small">{{ ts|length }} tournament{{ 's' if ts|length != 1 }}{% if n_live %} · <span class="badge live">{{ n_live }} live</span>{% endif %}</div>
+    <span class="go">Standings &amp; rankings →</span>
   </a>
   {% endfor %}
 </div>
@@ -18,7 +21,7 @@
 <h2 style="margin-top:2rem">Happening now</h2>
 <div class="stack">
   {% for t in live %}
-  <a class="card sportcard row between" href="{{ url_for('public.standings', slug=t.slug) }}">
+  <a class="card sportcard row between" data-sport="{{ t.sport }}" href="{{ url_for('public.standings', slug=t.slug) }}">
     <span>{{ t.rules.icon }} <strong>{{ t.name }}</strong> <span class="muted small">{{ t.rules.name }}</span></span>
     <span class="badge live">Round {{ t.max_round or 1 }}</span>
   </a>

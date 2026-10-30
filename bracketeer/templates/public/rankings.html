@@ -3,9 +3,10 @@
 {% set active_sport = sport.key %}
 {% block title %}{{ sport.name }} rankings{% if club %} · {{ club.name }}{% endif %} · {{ SITE_NAME }}{% endblock %}
 {% block content %}
-<div class="hero">
-  <h1>{{ sport.icon }} {{ sport.name }} rankings{% if club %} · {{ club.name }}{% endif %}</h1>
-  <p class="muted small">{% if sport.has_ratings %}Every {{ sport.participant_label|lower }}'s rating carries over from tournament to tournament and moves with each game they play (Elo), including games against other clubs. <span class="badge">new</span> marks fewer than 5 rated games, while the rating is still settling.{% else %}All tournaments combined, ranked by points (a win scores what its tournament awards, usually 3; a draw 1), then goal difference.{% endif %}</p>
+<div class="hero banner">
+  <div class="kicker"><a href="{{ url_for('public.sport', sport=sport.key) }}">{{ sport.icon }} {{ sport.name }}</a></div>
+  <h1>Rankings{% if club %} · {{ club.name }}{% endif %}</h1>
+  <p class="muted small" style="margin:0;max-width:60rem">{% if sport.has_ratings %}Every {{ sport.participant_label|lower }}'s rating carries over from tournament to tournament and moves with each game they play (Elo), including games against other clubs. <span class="badge">new</span> marks fewer than 5 rated games, while the rating is still settling.{% else %}All tournaments combined, ranked by points (a win scores what its tournament awards, usually 3; a draw 1), then goal difference.{% endif %}</p>
 </div>
 <nav class="tabs">
   <a href="{{ url_for('public.sport', sport=sport.key) }}">Tournaments</a>

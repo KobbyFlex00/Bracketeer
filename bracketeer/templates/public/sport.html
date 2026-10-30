@@ -1,9 +1,14 @@
 {% extends "base.html" %}
 {% from "public/_leaderboard.html" import leaderboard %}
+{% from "_sport.html" import tile_word, sport_mark with context %}
 {% set active_sport = sport.key %}
 {% block title %}{{ sport.name }} · {{ SITE_NAME }}{% endblock %}
 {% block content %}
-<div class="hero"><h1>{{ sport.icon }} {{ sport.name }}</h1></div>
+<div class="hero banner">
+  {% if sport.key == 'scrabble' %}{{ tile_word('Scrabble') }}{% else %}{{ sport_mark(sport.key) }}<h1>{{ sport.name }}</h1>{% endif %}
+  {% if sport.key == 'scrabble' %}<h1 class="sr-only">Scrabble</h1>{% endif %}
+  <p class="muted" style="margin:0">{{ {'scrabble': 'Swiss, round robin and King of the Hill · ratings that carry across tournaments', 'chess': 'Swiss and round robin with colour balancing · Elo ratings', 'football': 'Leagues, cups and play-offs · tables, fixtures and brackets'}[sport.key] }}</p>
+</div>
 <nav class="tabs">
   <a href="{{ url_for('public.sport', sport=sport.key) }}" class="on">Tournaments</a>
   <a href="{{ url_for('public.rankings', sport=sport.key) }}">Rankings</a>

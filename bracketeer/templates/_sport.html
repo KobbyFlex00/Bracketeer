@@ -1,0 +1,18 @@
+{# Sport artwork shared by banners and the home page. #}
+{%- set TILE_POINTS = {'A':1,'B':3,'C':3,'D':2,'E':1,'F':4,'G':2,'H':4,'I':1,'J':8,'K':5,'L':1,'M':3,'N':1,'O':1,'P':3,'Q':10,'R':1,'S':1,'T':1,'U':1,'V':4,'W':4,'X':8,'Y':4,'Z':10} -%}
+
+{%- macro tile_word(word) -%}
+<div class="tiles-word" role="img" aria-label="{{ word }}">
+  {%- for ch in word|upper %}{% if ch == ' ' %}<span style="width:.6rem"></span>{% else %}<span class="tile-l" aria-hidden="true">{{ ch }}<sub>{{ TILE_POINTS.get(ch, '') }}</sub></span>{% endif %}{% endfor -%}
+</div>
+{%- endmacro -%}
+
+{%- macro sport_mark(key) -%}
+<div class="sport-mark" aria-hidden="true">
+{%- if key == 'chess' -%}
+  <svg viewBox="0 0 45 45"><g fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21"/><path d="M24 18c.4 2.9-5.5 7.4-8 9-3 2-2.8 4.3-5 4-1-.9 1.4-3 0-3-1 0 .2 1.2-1 2-1 0-4 1-4-4 0-2 6-12 6-12s1.9-1.9 2-3.5c-.7-1-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.8-2 2.5-3c1 0 1 3 1 3"/></g><path d="M9.5 25.5a.5.5 0 1 1-1 0 .5.5 0 1 1 1 0zM15 15.5a.5 1.5 0 1 1-1 0 .5 1.5 0 1 1 1 0z" fill="var(--banner-bg, #fff)" transform="rotate(30 14.5 15.5)"/></svg>
+{%- else -%}
+  {{ SPORTS[key].icon }}
+{%- endif -%}
+</div>
+{%- endmacro -%}
