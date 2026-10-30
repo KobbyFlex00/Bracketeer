@@ -4,9 +4,7 @@ export default defineConfig({
   // Declare your Neon services here
   auth: true,
   // aiGateway: true,  // needs a paid Neon plan; `neon deploy` refuses it on Free
-  functions: {
-    hello: { name: "Hello World", source: "./hello.ts" },
-  },
+  functions: {},
   buckets: {
     // "private" is the default; use "public_read" for anonymous reads
     assets: { access: "private" },
