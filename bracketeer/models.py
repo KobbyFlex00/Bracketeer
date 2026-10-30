@@ -19,6 +19,15 @@ class AdminUser(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    is_super = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())  # manages admins and every sport
+    sports = db.Column(db.JSON, nullable=False, default=list)  # sport keys a regular admin manages
+
+    def can_manage(self, sport: str) -> bool:
+        return self.is_super or sport in (self.sports or [])
+
+    def managed(self, all_sports) -> list:
+        """Sport keys this admin can see in the dashboard, in the site's order."""
+        return [k for k in all_sports if self.can_manage(k)]
 
     def set_password(self, password: str):
         self.password_hash = generate_password_hash(password)

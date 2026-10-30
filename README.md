@@ -26,6 +26,10 @@ For every sport:
   in each category (rating, biggest climber, wins, win rate, top score, average score, average spread). The
   all-clubs view adds a club table with average rating and results against other clubs. A player keeps one
   rating counting every game, including inter-club ones, and is listed under the club of their latest entry.
+- **Admin roles**: the login from `ADMIN_USERNAME` / `ADMIN_PASSWORD` is a **super admin**. On
+  **Dashboard → Admins** a super admin adds other admins and ticks the games each one manages (Scrabble,
+  Chess, Football, and any game added later). A game admin only sees and changes their own games'
+  tournaments, players and imports. Every admin can change their own password under **Account**.
 - **TD dashboard**:
   - Create, rename, archive and delete tournaments.
   - Add players one by one, by pasting a list, or from a CSV.

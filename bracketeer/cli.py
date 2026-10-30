@@ -9,10 +9,12 @@ from .models import AdminUser
 
 
 def ensure_admin(username: str, password: str) -> AdminUser:
+    """The bootstrap login from ADMIN_USERNAME / ADMIN_PASSWORD is always a super admin."""
     user = AdminUser.query.filter_by(username=username).first()
     if user is None:
-        user = AdminUser(username=username)
+        user = AdminUser(username=username, sports=[])
         db.session.add(user)
+    user.is_super = True
     user.set_password(password)
     db.session.commit()
     return user

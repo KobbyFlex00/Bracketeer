@@ -8,7 +8,7 @@
   automatically when the name matches an earlier one. When the same person was entered under different spellings,
   <strong>merge</strong> them: the merged spelling is remembered for future tournaments.</p></div>
 <nav class="tabs">
-  {% for key, s in SPORTS.items() %}
+  {% for key, s in SPORTS.items() if current_user.can_manage(key) %}
     <a href="{{ url_for('admin.players', sport=key) }}" class="{{ 'on' if sport.key == key }}">{{ s.icon }} {{ s.name }}</a>
   {% endfor %}
 </nav>

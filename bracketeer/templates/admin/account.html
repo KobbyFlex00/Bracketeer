@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Account · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="hero"><h1>Account</h1>
+  <p class="muted" style="margin:0">Signed in as <strong>{{ current_user.username }}</strong> ·
+  {% if current_user.is_super %}super admin (all games){% else %}manages {% for k in current_user.sports if k in SPORTS %}{{ SPORTS[k].name }}{{ ', ' if not loop.last }}{% endfor %}{% endif %}</p></div>
+<form class="card" method="post" style="max-width:420px">
+  {% include "admin/_csrf.html" %}
+  <h2>Change password</h2>
+  <div class="field"><label for="cur">Current password</label><input id="cur" name="current" type="password" required autocomplete="current-password"></div>
+  <div class="field"><label for="new">New password</label><input id="new" name="new" type="password" required minlength="8" autocomplete="new-password"></div>
+  <div class="field"><label for="cf">New password again</label><input id="cf" name="confirm" type="password" required minlength="8" autocomplete="new-password"></div>
+  <button class="btn primary" type="submit">Change password</button>
+</form>
+{% endblock %}

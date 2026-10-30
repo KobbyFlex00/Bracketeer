@@ -5,7 +5,7 @@
 <div class="hero row between"><div><h1>TD Dashboard</h1><p class="muted" style="margin:0">Each sport keeps its own tournaments.</p></div>
   <a class="btn" href="{{ url_for('admin.players', sport=sport.key) }}">{{ sport.participant_plural }} &amp; career profiles</a></div>
 <nav class="tabs">
-  {% for key, s in SPORTS.items() %}
+  {% for key in allowed %}{% set s = SPORTS[key] %}
     <a href="{{ url_for('admin.home', sport=key) }}" class="{{ 'on' if sport.key == key }}">{{ s.icon }} {{ s.name }} <span class="badge">{{ counts[key] }}</span></a>
   {% endfor %}
 </nav>

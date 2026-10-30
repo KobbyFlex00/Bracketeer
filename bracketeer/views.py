@@ -33,3 +33,7 @@ def register_template_helpers(app, sports):
     @app.errorhandler(404)
     def not_found(_e):
         return render_template("404.html"), 404
+
+    @app.errorhandler(403)
+    def forbidden(_e):
+        return render_template("403.html"), 403

@@ -73,3 +73,9 @@ document.querySelectorAll(".rating-chart .hit").forEach(function (hit) {
   });
   label();
 })();
+// Admins page: a super admin manages every game, so the per-game boxes switch off when it's ticked.
+document.querySelectorAll("[data-admin-form]").forEach(function (form) {
+  var sup = form.querySelector("[data-super]"), boxes = form.querySelector(".sportboxes");
+  if (!sup || !boxes) return;
+  sup.addEventListener("change", function () { boxes.disabled = sup.checked; });
+});

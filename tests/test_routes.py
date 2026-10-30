@@ -1,5 +1,6 @@
 import io
 import json
+import re
 
 import pytest
 
@@ -145,4 +146,9 @@ def test_each_sport_gets_its_theme(client):
         assert f'data-sport="{sport}"'.encode() in page and b"hero banner" in page, sport
     home = client.get("/").data
     assert all(f'data-sport="{s}"'.encode() in home for s in ("scrabble", "chess", "football"))
-    assert b'class="tile-l"' in home  # Scrabble name in letter tiles
+    tiles = re.findall(rb'class="tile-l" aria-hidden="true">(\w)<sub>', home)
+    assert b"".join(tiles) == b"SCRABBLE"  # the whole name, in letter tiles
+    css = client.get("/static/app.css").data
+    for sport in ("scrabble", "chess", "football"):
+        rule = re.search(rb'\[data-sport="' + sport.encode() + rb'"\] \{([^}]*)\}', css)
+        assert rule and b"--accent:" in rule.group(1) and b"--banner-art:" in rule.group(1), sport
