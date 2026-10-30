@@ -22,6 +22,10 @@ For every sport:
   tournament into the next and moves with every round they play. Each sport's page shows the top players, and
   `/<sport>/rankings` has the full leaderboard (rating, last change, record, win %, titles, best finish). Each
   player's page has a rating-over-time chart and their tournament history.
+- **Clubs**: rankings have a tab per club (`/scrabble/rankings?club=ATU`) with that club's leaderboard and top 3
+  in each category (rating, biggest climber, wins, win rate, top score, average score, average spread). The
+  all-clubs view adds a club table with average rating and results against other clubs. A player keeps one
+  rating counting every game, including inter-club ones, and is listed under the club of their latest entry.
 - **TD dashboard**:
   - Create, rename, archive and delete tournaments.
   - Add players one by one, by pasting a list, or from a CSV.

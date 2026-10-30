@@ -1,8 +1,9 @@
 """Cross-tournament records: one row per player, built from every tournament of a sport."""
-from dataclasses import dataclass, field
+from collections import Counter, defaultdict
+from dataclasses import dataclass, field, replace
 
 from .engine import champion
-from .models import Player, Tournament
+from .models import DRAW, P1, P2, Player, Tournament
 from .ratings import career_ratings
 from .sports import get_sport
 
@@ -38,6 +39,9 @@ class Record:
     gd: int = 0
     gf: int = 0
     spread: int = 0  # scrabble: total margin over real games
+    high_score: int | None = None  # scrabble: best single-game score (only games entered with scores)
+    score_total: int = 0
+    scored_games: int = 0
     titles: int = 0
     best: tuple | None = None  # (rank, field) of the best finish in a finished tournament
     position: int = 0
@@ -59,6 +63,10 @@ class Record:
     @property
     def provisional(self) -> bool:
         return self.rated_games < 5
+
+    @property
+    def club(self) -> str:
+        return club_key(self.player.club)
 
 
 def _won(t, rows):
@@ -96,6 +104,11 @@ def sport_records(sport: str) -> list[Record]:
             rec.draws += counts["D"]
             rec.byes += counts["B"]
             real = [e for e in es if e.outcome != "B"]
+            for e in real:
+                if e.game.score1 is not None and e.game.score2 is not None:
+                    rec.scored_games += 1
+                    rec.score_total += e.gf
+                    rec.high_score = e.gf if rec.high_score is None else max(rec.high_score, e.gf)
             rec.spread += sum(e.margin for e in real)
             rec.gf += sum(e.gf for e in real)
             rec.gd += sum(e.gf - e.ga for e in real)
@@ -122,3 +135,100 @@ def player_record(player: Player):
     """The player's Record and the full list it was ranked in (for 'rank N of M')."""
     records = sport_records(player.sport)
     return next((r for r in records if r.player.id == player.id), None), records
+
+
+# ---------- clubs ----------
+
+MIN_GAMES = 5  # for per-game averages and win %, so one lucky game doesn't top the list
+
+
+def club_key(name) -> str:
+    return " ".join((name or "").split()).casefold()
+
+
+@dataclass
+class Club:
+    key: str
+    name: str
+    members: list = field(default_factory=list)
+    wins: int = 0  # against other clubs only
+    losses: int = 0
+    draws: int = 0
+    h2h: dict = field(default_factory=dict)  # other club key -> [wins, losses, draws]
+
+    @property
+    def avg_rating(self):
+        rated = [r.rating for r in self.members if r.rating is not None]
+        return round(sum(rated) / len(rated)) if rated else None
+
+    @property
+    def top(self):
+        return self.members[0] if self.members else None
+
+
+def in_club(records: list[Record], key: str) -> list[Record]:
+    """The club's members, ranked among themselves. A player belongs to the club of their latest entry."""
+    out = [replace(r) for r in records if r.club == key]
+    for i, r in enumerate(out, 1):
+        r.position = i
+    return out
+
+
+def clubs(sport: str, records: list[Record]) -> list[Club]:
+    """Clubs with at least one ranked player, biggest first, with results between clubs."""
+    found = {}
+    spellings = defaultdict(Counter)
+    for r in records:
+        if r.club:
+            found.setdefault(r.club, Club(r.club, "")).members.append(r)
+            spellings[r.club][r.player.club.strip()] += 1
+    for key, c in found.items():
+        c.name = spellings[key].most_common(1)[0][0]
+    # Club-vs-club results use each entry's club at the time of the game.
+    for t in Tournament.query.filter_by(sport=sport).all():
+        for g in t.games:
+            if g.p2_id is None or g.result not in (P1, P2, DRAW):
+                continue
+            a, b = club_key(g.p1.club), club_key(g.p2.club)
+            if a == b or a not in found or b not in found:
+                continue
+            for me, them, won in ((a, b, g.result == P1), (b, a, g.result == P2)):
+                idx = 2 if g.result == DRAW else 0 if won else 1
+                found[me].h2h.setdefault(them, [0, 0, 0])[idx] += 1
+                outcome = ("wins", "losses", "draws")[idx]
+                setattr(found[me], outcome, getattr(found[me], outcome) + 1)
+    return sorted(found.values(), key=lambda c: (-len(c.members), c.name))
+
+
+def head_to_head(club_list: list[Club]) -> list[tuple]:
+    """(club a, club b, [a wins, b wins, draws]) for every pair of clubs that has met."""
+    by_key = {c.key: c for c in club_list}
+    pairs = [(c, by_key[other], wld) for c in club_list for other, wld in c.h2h.items() if c.key < other]
+    return [(a, b, wld) if wld[0] >= wld[1] else (b, a, [wld[1], wld[0], wld[2]]) for a, b, wld in pairs]  # leader first
+
+
+def leaders(sport, records: list[Record], n: int = 3) -> list[dict]:
+    """Top n performers in each category. Averages and win % need MIN_GAMES games."""
+    out = []
+
+    def best(label, rows, value, fmt=str, note=""):
+        rows = sorted((r for r in rows if value(r) is not None), key=lambda r: (value(r), r.played), reverse=True)
+        if rows:
+            out.append({"label": label, "note": note, "top": [(r, fmt(value(r))) for r in rows[:n]]})
+
+    regular = [r for r in records if r.played >= MIN_GAMES]
+    if sport.has_ratings:
+        best("Highest rating", records, lambda r: r.rating)
+        best("Biggest climber", records, lambda r: r.change if r.change and r.change > 0 else None,
+             lambda v: f"+{v}", "in their latest tournament")
+    else:
+        best("Most points", records, lambda r: r.points)
+        best("Most goals", records, lambda r: r.gf)
+    best("Most wins", records, lambda r: r.wins or None)
+    best("Best win rate", regular, lambda r: r.win_pct, lambda v: f"{v:.0f}%", f"{MIN_GAMES}+ games")
+    if sport.key == "scrabble":
+        best("Top score", records, lambda r: r.high_score, note="highest single game")
+        best("Best average score", [r for r in records if r.scored_games >= MIN_GAMES],
+             lambda r: r.score_total / r.scored_games, lambda v: f"{v:.0f}", f"{MIN_GAMES}+ scored games")
+        best("Best average spread", regular, lambda r: r.spread / r.played, lambda v: f"{v:+.0f}", f"{MIN_GAMES}+ games")
+    return out

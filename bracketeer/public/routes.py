@@ -6,7 +6,7 @@ from flask import Blueprint, Response, abort, render_template, request
 from ..engine import champion, knockout_rounds
 from ..extensions import db
 from ..models import Participant, Player, Tournament
-from ..rankings import player_record, sport_records
+from ..rankings import club_key, clubs, head_to_head, in_club, leaders, player_record, sport_records
 from ..ratings import career_ratings
 from ..sports import SPORTS
 
@@ -48,12 +48,21 @@ def home():
 def sport(sport):
     ts = Tournament.query.filter_by(sport=sport).order_by(Tournament.created_at.desc()).all()
     sections = [(s, [t for t in ts if t.status == s]) for s in ("live", "upcoming", "finished")]
-    return render_template("public/sport.html", sport=SPORTS[sport], sections=sections, top=sport_records(sport)[:10])
+    records = sport_records(sport)
+    club_list = clubs(sport, records) if SPORTS[sport].has_clubs else []
+    return render_template("public/sport.html", sport=SPORTS[sport], sections=sections, top=records[:10], clubs=club_list)
 
 
 @bp.route("/<any(scrabble, chess, football):sport>/rankings")
 def rankings(sport):
-    return render_template("public/rankings.html", sport=SPORTS[sport], records=sport_records(sport))
+    rules = SPORTS[sport]
+    records = sport_records(sport)
+    club_list = clubs(sport, records) if rules.has_clubs else []
+    club = next((c for c in club_list if c.key == club_key(request.args.get("club"))), None)
+    if club is not None:
+        records = in_club(records, club.key)
+    return render_template("public/rankings.html", sport=rules, records=records, clubs=club_list, club=club,
+                           leaders=leaders(rules, records), h2h=head_to_head(club_list))
 
 
 @bp.route("/<any(scrabble, chess, football):sport>/players/<int:pid>")

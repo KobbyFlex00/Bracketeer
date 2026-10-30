@@ -11,6 +11,11 @@
 {% if top %}
 <div class="row between" style="margin-bottom:.5rem"><h2 style="margin:0">Top {{ sport.participant_plural|lower }}</h2>
   <a href="{{ url_for('public.rankings', sport=sport.key) }}">Full rankings →</a></div>
+{% if clubs|length > 1 %}
+<nav class="chips" aria-label="Club rankings"><span class="muted small">By club:</span>
+  {% for c in clubs %}<a href="{{ url_for('public.rankings', sport=sport.key, club=c.name) }}">{{ c.name }} <span class="muted">{{ c.members|length }}</span></a>{% endfor %}
+</nav>
+{% endif %}
 {{ leaderboard(sport, top, compact=true) }}
 {% endif %}
 {% set any_t = namespace(found=false) %}

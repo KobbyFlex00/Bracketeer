@@ -1,17 +1,70 @@
 {% extends "base.html" %}
 {% from "public/_leaderboard.html" import leaderboard %}
 {% set active_sport = sport.key %}
-{% block title %}{{ sport.name }} rankings · {{ SITE_NAME }}{% endblock %}
+{% block title %}{{ sport.name }} rankings{% if club %} · {{ club.name }}{% endif %} · {{ SITE_NAME }}{% endblock %}
 {% block content %}
 <div class="hero">
-  <h1>{{ sport.icon }} {{ sport.name }} rankings</h1>
-  <p class="muted small">{% if sport.has_ratings %}Every {{ sport.participant_label|lower }}'s rating carries over from tournament to tournament and moves with each game they play (Elo). <span class="badge">new</span> marks fewer than 5 rated games, while the rating is still settling.{% else %}All tournaments combined, ranked by points (a win scores what its tournament awards, usually 3; a draw 1), then goal difference.{% endif %}</p>
+  <h1>{{ sport.icon }} {{ sport.name }} rankings{% if club %} · {{ club.name }}{% endif %}</h1>
+  <p class="muted small">{% if sport.has_ratings %}Every {{ sport.participant_label|lower }}'s rating carries over from tournament to tournament and moves with each game they play (Elo), including games against other clubs. <span class="badge">new</span> marks fewer than 5 rated games, while the rating is still settling.{% else %}All tournaments combined, ranked by points (a win scores what its tournament awards, usually 3; a draw 1), then goal difference.{% endif %}</p>
 </div>
 <nav class="tabs">
   <a href="{{ url_for('public.sport', sport=sport.key) }}">Tournaments</a>
   <a href="{{ url_for('public.rankings', sport=sport.key) }}" class="on">Rankings</a>
 </nav>
-<div class="row between" style="margin-bottom:.5rem"><span class="muted small">{{ records|length }} {{ sport.participant_plural|lower }}</span>
-  <input class="search" type="search" placeholder="Search…" data-filter="#board" aria-label="Search"></div>
-{{ leaderboard(sport, records) }}
+{% if clubs %}
+<nav class="chips" aria-label="Club">
+  <a href="{{ url_for('public.rankings', sport=sport.key) }}" class="{{ 'on' if not club }}">All clubs</a>
+  {% for c in clubs %}<a href="{{ url_for('public.rankings', sport=sport.key, club=c.name) }}" class="{{ 'on' if club and club.key == c.key }}">{{ c.name }} <span class="muted">{{ c.members|length }}</span></a>{% endfor %}
+</nav>
+{% endif %}
+
+{% if leaders %}
+<h2>Top performers{% if club %} · {{ club.name }}{% endif %}</h2>
+<div class="tiles wide">
+  {% for l in leaders %}
+  <div class="card tile leader">
+    <div class="muted small">{{ l.label }}{% if l.note %} · {{ l.note }}{% endif %}</div>
+    <ol>
+    {% for r, value in l.top %}
+      <li><a href="{{ url_for('public.player', sport=sport.key, pid=r.player.id) }}">{{ r.player.name }}</a><span>{{ value }}</span></li>
+    {% endfor %}
+    </ol>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if clubs|length > 1 and not club %}
+<h2>Clubs</h2>
+<div class="card pad0 tablewrap" style="margin-bottom:1.25rem">
+<table>
+  <thead><tr><th>Club</th><th class="num hide-sm">Players</th>{% if sport.has_ratings %}<th class="num">Avg</th>{% endif %}<th class="hide-sm">Top {{ sport.participant_label|lower }}</th><th class="num" title="Wins, losses and draws against other clubs">vs clubs W–L–D</th></tr></thead>
+  <tbody>
+  {% for c in clubs %}
+    <tr>
+      <td class="name"><a href="{{ url_for('public.rankings', sport=sport.key, club=c.name) }}">{{ c.name }}</a></td>
+      <td class="num hide-sm">{{ c.members|length }}</td>
+      {% if sport.has_ratings %}<td class="num strong">{{ c.avg_rating if c.avg_rating is not none else '–' }}</td>{% endif %}
+      <td class="hide-sm">{% if c.top %}{{ c.top.player.name }}{% if c.top.rating is not none %} <span class="muted">({{ c.top.rating }})</span>{% endif %}{% endif %}</td>
+      <td class="num">{% if c.wins + c.losses + c.draws %}{{ c.wins }}–{{ c.losses }}–{{ c.draws }}{% else %}<span class="muted">–</span>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if clubs|length > 2 and h2h %}
+<div class="tiles">
+  {% for a, b, wld in h2h %}
+  <div class="card tile"><div class="muted small">Head to head</div>
+    <strong>{{ a.name }} {{ wld[0] }}–{{ wld[1] }} {{ b.name }}</strong>
+    {% if wld[2] %}<div class="muted small">{{ wld[2] }} drawn</div>{% endif %}</div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endif %}
+
+<div class="row between" style="margin-bottom:.5rem"><h2 style="margin:0">{{ club.name ~ ' leaderboard' if club else 'Leaderboard' }}</h2>
+  <div class="row"><span class="muted small">{{ records|length }} {{ sport.participant_plural|lower }}</span>
+  <input class="search" type="search" placeholder="Search…" data-filter="#board" aria-label="Search"></div></div>
+{{ leaderboard(sport, records, show_club=not club) }}
 {% endblock %}

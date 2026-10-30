@@ -127,8 +127,21 @@ details > summary { cursor: pointer; color: var(--accent); font-weight: 500; }
 .scorecard .line { border-bottom: 1px solid var(--muted); height: 1.8rem; margin-top: .4rem; }
 
 /* rankings & career */
+.chips { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
+.chips a { padding: .3rem .75rem; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text); font-weight: 500; font-size: .9rem; }
+.chips a:hover { text-decoration: none; border-color: var(--accent); }
+.chips a.on { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); }
+.chips a.on .muted { color: inherit; opacity: .8; }
+.leader ol { list-style: none; margin: .35rem 0 0; padding: 0; counter-reset: lead; }
+.leader li { display: flex; justify-content: space-between; gap: .5rem; padding: .15rem 0; font-size: .9rem; counter-increment: lead; }
+.leader li::before { content: counter(lead); color: var(--muted); width: 1rem; flex: none; }
+.leader li a { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.leader li span { font-variant-numeric: tabular-nums; color: var(--muted); }
+.leader li:first-child { font-size: 1rem; font-weight: 700; }
+.leader li:first-child span { color: var(--text); }
 .up { color: var(--win); font-weight: 600; } .down { color: var(--loss); font-weight: 600; }
 .tiles { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); margin-bottom: 1rem; }
+.tiles.wide { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
 .tile strong { display: block; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
 .chartwrap { position: relative; overflow-x: auto; }
 .rating-chart { display: block; width: 100%; min-width: 520px; height: auto; overflow: visible; }  /* scroll, don't shrink the labels */
