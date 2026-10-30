@@ -63,5 +63,13 @@ document.querySelectorAll(".rating-chart .hit").forEach(function (hit) {
     label();
   });
   if (dark.addEventListener) dark.addEventListener("change", label);
+  else if (dark.addListener) dark.addListener(label);  // Safari before 14
+  // Another tab changed the theme: follow it.
+  window.addEventListener("storage", function (e) {
+    if (e.key !== "theme") return;
+    if (e.newValue === "light" || e.newValue === "dark") root.dataset.theme = e.newValue;
+    else delete root.dataset.theme;
+    label();
+  });
   label();
 })();
