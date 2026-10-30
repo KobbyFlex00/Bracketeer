@@ -137,3 +137,12 @@ def test_theme_toggle_on_every_page(client):
     for url in ("/", "/scrabble", "/scrabble/rankings", "/admin/login"):
         page = client.get(url).data
         assert b"data-theme-toggle" in page and b'localStorage.getItem("theme")' in page, url
+
+
+def test_each_sport_gets_its_theme(client):
+    for sport in ("scrabble", "chess", "football"):
+        page = client.get(f"/{sport}").data
+        assert f'data-sport="{sport}"'.encode() in page and b"hero banner" in page, sport
+    home = client.get("/").data
+    assert all(f'data-sport="{s}"'.encode() in home for s in ("scrabble", "chess", "football"))
+    assert b'class="tile-l"' in home  # Scrabble name in letter tiles

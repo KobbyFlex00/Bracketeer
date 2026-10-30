@@ -2,8 +2,8 @@
 {% set active_sport = sport.key %}
 {% block title %}{{ pl.name }} · {{ sport.name }} · {{ SITE_NAME }}{% endblock %}
 {% block content %}
-<div class="hero">
-  <div class="muted small"><a href="{{ url_for('public.rankings', sport=sport.key) }}">{{ sport.icon }} {{ sport.name }} rankings</a></div>
+<div class="hero banner">
+  <div class="kicker"><a href="{{ url_for('public.rankings', sport=sport.key) }}">{{ sport.icon }} {{ sport.name }} rankings</a></div>
   <h1>{{ pl.name }}</h1>
   <div class="muted small">{% if pl.club %}<a href="{{ url_for('public.rankings', sport=sport.key, club=pl.club) }}">{{ pl.club }}</a> · {% endif %}{% if rec %}Ranked {{ rec.position|ordinal }} of {{ total }}{% else %}No games played yet{% endif %}</div>
 </div>

@@ -3,8 +3,8 @@
 {% set refresh = live %}
 {% block title %}{{ t.name }} · {{ SITE_NAME }}{% endblock %}
 {% block content %}
-<div class="hero">
-  <div class="muted small"><a href="{{ url_for('public.sport', sport=t.sport) }}">{{ rules.icon }} {{ rules.name }}</a>{% if t.venue %} · {{ t.venue }}{% endif %}</div>
+<div class="hero banner">
+  <div class="kicker"><a href="{{ url_for('public.sport', sport=t.sport) }}">{{ rules.icon }} {{ rules.name }}</a>{% if t.venue %} · {{ t.venue }}{% endif %}{% if t.held_on %} · {{ t.held_on.strftime('%d %b %Y') }}{% endif %}</div>
   <h1>{{ t.name }} <span class="badge {{ t.status }}">{{ t.status|capitalize }}</span></h1>
   <div class="muted small">{{ rules.formats.get(t.format, t.format) }} · {{ t.participants|length }} {{ rules.participant_plural|lower }}{% if t.max_round %} · {{ t.max_round }} round{{ 's' if t.max_round != 1 }}{% endif %}{% if live %} · updates every {{ config.REFRESH_SECONDS }}s{% endif %}</div>
 </div>
