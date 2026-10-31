@@ -100,21 +100,32 @@ class Chain:
         self.client = ContractClient(contract_id, rpc_url, passphrase)
         self.keypair = Keypair.from_secret(secret) if secret else None
 
+    @staticmethod
+    def _translate(e: Exception) -> OnchainError:
+        """SDK and network failures become OnchainError; the contract's VersionConflict (#2) keeps its own type,
+        whether the simulation caught it or the transaction failed on submit after a publish raced ahead."""
+        if "Error(Contract, #2)" in str(e):
+            return VersionConflict(str(e))
+        return OnchainError(f"Stellar call failed: {e}")
+
     def _read(self, fn, *args):
-        return self.client.invoke(fn, list(args)).result()
+        try:
+            return self.client.invoke(fn, list(args)).result()
+        except OnchainError:
+            raise
+        except Exception as e:  # RPC/transport errors from stellar-sdk or the HTTP client
+            raise self._translate(e) from e
 
     def _write(self, fn, *args, force=False):
-        from stellar_sdk.contract.exceptions import SimulationFailedError
-
         if self.keypair is None:
             raise OnchainError("No STELLAR_SECRET_KEY is configured, so nothing can be published.")
         try:
             tx = self.client.invoke(fn, list(args), source=self.keypair.public_key, signer=self.keypair)
-        except SimulationFailedError as e:
-            if "Error(Contract, #2)" in str(e):
-                raise VersionConflict(str(e)) from e
-            raise OnchainError(f"The contract refused the call: {e}") from e
-        tx.sign_and_submit(force=force)
+            tx.sign_and_submit(force=force)
+        except OnchainError:
+            raise
+        except Exception as e:
+            raise self._translate(e) from e
         sent, done = tx.send_transaction_response, tx.get_transaction_response
         return getattr(sent, "hash", None), getattr(done, "ledger", None)
 
@@ -148,7 +159,9 @@ class Chain:
 
 def get_chain() -> Chain:
     """The chain client for the configured network. Tests replace this with a fake."""
-    rpc, passphrase = NETWORKS.get(network(), NETWORKS["testnet"])
+    if network() not in NETWORKS:
+        raise OnchainError(f"Unknown STELLAR_NETWORK {network()!r}; use one of: {', '.join(NETWORKS)}.")
+    rpc, passphrase = NETWORKS[network()]
     rpc = _cfg("STELLAR_RPC_URL") or rpc
     if not rpc:
         raise OnchainError(f"Set STELLAR_RPC_URL for the {network()} network.")
@@ -187,7 +200,8 @@ def publish(t: Tournament, by: str = "") -> tuple[Anchor, bool]:
         latest = chain.latest(key)
         if not latest or latest["hash"] != digest:
             raise OnchainError("This tournament was just published from somewhere else. Reload and try again.") from None
-        version, tx_hash, ledger = latest["version"], None, latest["ledger"]
+        # This exact fingerprint is already onchain, but this call can't claim to have put it there.
+        return _record(t, key, latest["version"], digest, None, latest["ledger"], by), False
     return _record(t, key, version, digest, tx_hash, ledger, by), True
 
 

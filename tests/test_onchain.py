@@ -18,7 +18,7 @@ class FakeChain:
     """In-memory stand-in for the results-registry contract, with the same version rules."""
 
     def __init__(self):
-        self.records, self.calls, self.lose_next_response = {}, [], False
+        self.records, self.calls, self.lose_next_response, self.race_same_hash = {}, [], False, False
 
     def latest(self, key):
         recs = self.records.get(key, [])
@@ -30,6 +30,9 @@ class FakeChain:
     def publish(self, key, hex_hash, version):
         self.calls.append(("publish", key, version))
         recs = self.records.setdefault(key, [])
+        if self.race_same_hash:  # someone else landed this exact fingerprint first
+            self.race_same_hash = False
+            recs.append({"version": len(recs) + 1, "hash": hex_hash, "ledger": 2000, "timestamp": 0})
         if version != len(recs) + 1:
             raise onchain.VersionConflict("Error(Contract, #2)")
         recs.append({"version": version, "hash": hex_hash, "ledger": 1000 + version, "timestamp": 0})
@@ -114,6 +117,13 @@ def test_a_retry_whose_first_attempt_landed_counts_as_published(chain, finished,
     assert [c for c in chain.calls if c[0] == "publish"] == [("publish", finished.slug, 1)]
 
 
+def test_conflict_with_the_same_fingerprint_counts_as_up_to_date(chain, finished, db):
+    chain.race_same_hash = True
+    anchor, created = onchain.publish(finished)  # goes through the VersionConflict recovery branch
+    assert not created and anchor.version == 1 and anchor.tx_hash is None and anchor.ledger == 2000
+    assert chain.versions(finished.slug) == 1
+
+
 def test_version_conflict_from_elsewhere_is_reported(chain, finished, db, monkeypatch):
     real_publish = chain.publish
 
@@ -141,8 +151,12 @@ def test_only_finished_tournaments_publish_and_config_is_required(app, chain, fi
     db.session.commit()
     with pytest.raises(onchain.OnchainError, match="Only finished"):
         onchain.publish(finished)
+    finished.status = "finished"
+    db.session.commit()
     app.config["STELLAR_SECRET_KEY"] = ""
     assert onchain.enabled() and not onchain.can_publish()
+    with pytest.raises(onchain.OnchainError, match="not configured"):
+        onchain.publish(finished)
     app.config["STELLAR_CONTRACT_ID"] = ""
     assert not onchain.enabled()
     with pytest.raises(onchain.OnchainError, match="not configured"):
@@ -163,11 +177,11 @@ def test_cli_publish_and_verify(app, chain, finished, db):
     out = runner.invoke(args=["onchain-publish", finished.slug])
     assert out.exit_code == 0 and "v1 published" in out.output and "stellar.expert" in out.output
     out = runner.invoke(args=["onchain-verify", finished.slug])
-    assert out.exit_code == 0 and "MATCH" in out.output
+    assert out.exit_code == 0 and out.output.splitlines()[-1] == "MATCH"
     finished.games[0].score2 = 300
     db.session.commit()
     out = runner.invoke(args=["onchain-verify", finished.slug])
-    assert out.exit_code == 1 and "MISMATCH" in out.output
+    assert out.exit_code == 1 and out.output.splitlines()[-1] == "MISMATCH"
     assert runner.invoke(args=["onchain-publish"]).exit_code != 0  # needs a slug or --all-finished
     assert isinstance(runner, CliRunner)
 
@@ -194,3 +208,36 @@ def test_chain_forces_extend_but_not_publish(monkeypatch):
     assert chain.extend("slug", 1, 2) == ("ab" * 32, 7)
     chain.publish("slug", "00" * 32, 1)
     assert submitted == [("extend", True), ("publish", False)]
+
+
+def test_unknown_network_is_rejected(app):
+    app.config.update(STELLAR_CONTRACT_ID="C" + "A" * 55, STELLAR_NETWORK="futurenet-typo")
+    with pytest.raises(onchain.OnchainError, match="Unknown STELLAR_NETWORK"):
+        onchain.get_chain()
+
+
+def test_sdk_and_network_errors_become_onchain_errors():
+    from stellar_sdk import Keypair
+
+    class Boom(Exception):
+        pass
+
+    def tx_failing(message):
+        class Tx:
+            def sign_and_submit(self, force=False):
+                raise Boom(message)
+        return Tx()
+
+    chain = onchain.Chain.__new__(onchain.Chain)
+    chain.keypair = Keypair.random()
+    chain.client = type("C", (), {"invoke": lambda self, fn, args, **kw: tx_failing("connection reset")})()
+    with pytest.raises(onchain.OnchainError, match="connection reset") as err:
+        chain.publish("slug", "00" * 32, 1)
+    assert not isinstance(err.value, onchain.VersionConflict)
+    # A conflict that only shows up when the transaction fails on submit is still a VersionConflict.
+    chain.client = type("C", (), {"invoke": lambda self, fn, args, **kw: tx_failing("HostError: Error(Contract, #2)")})()
+    with pytest.raises(onchain.VersionConflict):
+        chain.publish("slug", "00" * 32, 1)
+    chain.client = type("C", (), {"invoke": lambda self, fn, args, **kw: (_ for _ in ()).throw(Boom("rpc down"))})()
+    with pytest.raises(onchain.OnchainError, match="rpc down"):
+        chain.versions("slug")
