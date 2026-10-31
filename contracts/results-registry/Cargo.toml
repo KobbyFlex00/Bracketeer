@@ -1,0 +1,17 @@
+[package]
+name = "results-registry"
+version = "0.1.0"
+edition = "2021"
+description = "Bracketeer: an append-only registry of tournament result hashes on Stellar"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
