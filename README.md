@@ -89,6 +89,36 @@ Things to know about the free tier:
   pinging `https://<your-app>.onrender.com/healthz` every 10 minutes.
 - To change the TD password, update `ADMIN_PASSWORD` in Render and redeploy.
 
+## Verified on Stellar: how it works
+
+Bracketeer publishes a fingerprint of each finished tournament to a Soroban contract on Stellar, so nobody has to
+take the site's word for a result.
+
+```
+Organiser clicks Publish ─▶ Bracketeer computes SHA-256 of results.json ─▶ results registry contract (Stellar)
+                                                                              ▲
+Anyone: download results.json ─▶ sha256sum ─▶ compare with `latest` ──────────┘
+```
+
+1. **Publish.** On a finished tournament's Overview tab, a TD clicks **Publish to Stellar**. The app serialises
+   every game, the final standings and ratings deterministically (`bracketeer/onchain.py`), hashes it, and
+   calls `publish(slug, hash, version)` on the contract, signed by the club's key.
+2. **Badge.** The public tournament page shows **✓ Verified on Stellar · vN** while the results still match, and
+   **⚠ Changed since published** if they were edited afterwards. A correction is published as the next version;
+   every earlier version stays onchain.
+3. **Check it yourself.** On `/t/<slug>/verify`, download `results.json`, run `sha256sum` on it, and compare with
+   the contract:
+   ```bash
+   stellar contract invoke --network testnet --id <contract id> --source-account <any> -- latest --slug <slug>
+   ```
+
+Live examples: [The Clash of the Word Wizards](https://bracketeer.onrender.com/t/the-clash-of-the-word-wizards/verify)
+and [Back to School Tournament](https://bracketeer.onrender.com/t/back-to-school-tournament/verify). The contract,
+its interface and deploy steps are in [`contracts/README.md`](contracts/README.md).
+
+**Setup:** set `STELLAR_CONTRACT_ID` and `STELLAR_SECRET_KEY` (the contract admin's secret) on the server. Run
+`flask onchain-extend` every few months so published records stay live.
+
 ## Run it locally
 
 ```bash
