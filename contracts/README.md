@@ -11,7 +11,8 @@ chain. A correction is published as a new version; earlier versions stay readabl
 |---|---|
 | testnet | [`CAM3C37JBBCXWWKQRSTGAC36OFB54KBKMPYGJMAQRRCBFSQLC2NOGAYP`](https://stellar.expert/explorer/testnet/contract/CAM3C37JBBCXWWKQRSTGAC36OFB54KBKMPYGJMAQRRCBFSQLC2NOGAYP) |
 
-Admin is currently a temporary deploy key; it moves to the club's own key with `set_admin`.
+Admin: the club's key `GAVRZBIFNGRF2QF3ADBTMSWQ4Y2XIL6BPRXHMR76A742N5WWVRFJO7NS`, handed over from the deploy key with
+`set_admin` ([transaction](https://stellar.expert/explorer/testnet/tx/63ab34165f70714318c2a7af3fcb27482fb583269fca0234eee8c18c9bac3abb)). Only that key can publish.
 
 ## Interface
 
