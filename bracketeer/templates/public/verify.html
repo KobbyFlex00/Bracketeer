@@ -1,0 +1,48 @@
+{% extends "public/_tournament.html" %}
+{% block page %}
+{% set rec = check.onchain if check else none %}
+<div class="card verify-result {{ 'ok' if check and check.match else 'bad' if rec else 'none' }}">
+  {% if error %}
+    <h2>Couldn't reach Stellar just now</h2>
+    <p class="muted">The check below shows what this site holds; try again in a moment for the live onchain comparison.</p>
+  {% elif check and check.match %}
+    <h2>✓ These results match Stellar</h2>
+    <p class="muted">The fingerprint of the results on this site is identical to version {{ rec.version }} published on the Stellar {{ network }}, so they haven't changed since.</p>
+  {% elif rec %}
+    <h2>⚠ The results have changed since they were published</h2>
+    <p class="muted">The latest published version (v{{ rec.version }}) has a different fingerprint from the results shown now. The organisers may publish the correction as a new version.</p>
+  {% else %}
+    <h2>Not published yet</h2>
+    <p class="muted">These results haven't been published to Stellar.</p>
+  {% endif %}
+</div>
+
+<div class="grid2" style="align-items:start;margin-top:1rem">
+  <div class="card">
+    <h3>Fingerprints</h3>
+    <div class="field"><label>This site, now</label><code class="hash">{{ local_hash }}</code></div>
+    <div class="field"><label>On Stellar{% if rec %} (v{{ rec.version }}, ledger {{ rec.ledger }}){% endif %}</label>
+      {% if rec %}<code class="hash">{{ rec.hash }}</code>{% elif error %}<span class="muted">unavailable</span>{% else %}<span class="muted">none</span>{% endif %}</div>
+    {% if stellar %}
+    <h3 style="margin-top:1rem">Published versions</h3>
+    <ul class="versions">
+      {% for a in stellar.versions|reverse %}
+        <li>v{{ a.version }} · <code class="small">{{ a.hash[:16] }}…</code>{% if a.published_at %} · <span class="muted small">{{ a.published_at.strftime('%d %b %Y') }}</span>{% endif %}
+          {% if a.tx_hash %} · <a class="small" href="{{ explorer('tx', a.tx_hash) }}" target="_blank" rel="noopener">transaction ↗</a>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  <div class="card">
+    <h3>Check it yourself</h3>
+    <p class="small muted">You don't need to trust this page. Download the exact data that was fingerprinted, hash it, and compare with the contract on Stellar:</p>
+    <ol class="small steps">
+      <li><a href="{{ url_for('public.results_json', slug=t.slug) }}">Download results.json</a> (games, standings and ratings)</li>
+      <li>Hash it: <code>sha256sum {{ t.slug }}-results.json</code></li>
+      <li>Read the contract (<a href="{{ explorer('contract', contract) }}" target="_blank" rel="noopener">{{ contract[:8] }}…{{ contract[-4:] }} ↗</a>):<br>
+        <code class="cmd">stellar contract invoke --network {{ network }} --id {{ contract }} --source-account &lt;any&gt; -- latest --slug {{ key }}</code></li>
+    </ol>
+    <p class="small muted">Ratings carry over between tournaments, so an edit to an earlier tournament can change this one's ratings and fingerprint too.</p>
+  </div>
+</div>
+{% endblock %}

@@ -19,3 +19,37 @@
     </table>
   </div>
 </div>
+{% if onchain_enabled %}
+{% set st = onchain_status %}
+<div class="card stellar-card" style="margin-top:1rem">
+  <div class="row between"><h2 style="margin:0">Verified on Stellar</h2>
+    {% if st %}<span class="badge {{ 'finished' if st.matches else 'warn' }}">{{ '✓ v' ~ st.latest.version ~ ' matches' if st.matches else 'Changed since v' ~ st.latest.version }}</span>{% endif %}</div>
+  <p class="muted small">Publishing records a fingerprint (SHA-256) of the final results, standings and ratings on the Stellar
+    {{ onchain_network }}. Anyone can then check the site still matches it. A correction is published as a new version; earlier versions stay onchain.</p>
+  {% if st %}
+    <div class="tablewrap"><table>
+      <thead><tr><th>Version</th><th>Fingerprint</th><th class="hide-sm">Published</th><th></th></tr></thead>
+      <tbody>{% for a in st.versions|reverse %}
+        <tr><td>v{{ a.version }}</td><td><code class="small">{{ a.hash[:16] }}…</code></td>
+          <td class="muted small hide-sm">{{ a.published_at.strftime('%d %b %Y %H:%M') if a.published_at else '' }}{% if a.published_by %} · {{ a.published_by }}{% endif %}</td>
+          <td class="right">{% if a.tx_hash %}<a class="small" href="{{ explorer('tx', a.tx_hash) }}" target="_blank" rel="noopener">Transaction ↗</a>{% endif %}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+  {% endif %}
+  <div class="row" style="margin-top:.75rem">
+    {% if t.status != 'finished' %}
+      <span class="muted small">Set the status to <strong>Finished</strong> (Settings tab) to publish.</span>
+    {% elif not onchain_can_publish %}
+      <span class="muted small">Publishing needs <code>STELLAR_SECRET_KEY</code> on the server.</span>
+    {% elif st and st.matches %}
+      <span class="muted small">Up to date: nothing to publish.</span>
+    {% else %}
+      <form method="post" action="{{ url_for('admin.publish_onchain', tid=t.id) }}" class="inline">
+        {% include "admin/_csrf.html" %}
+        <button class="btn primary" type="submit" data-confirm="Publish {{ 'a new version of ' if st else '' }}these results to Stellar? It's permanent; a later correction is added as a new version.">{{ 'Publish v' ~ (st.latest.version + 1) if st else 'Publish to Stellar' }}</button>
+      </form>
+    {% endif %}
+    <a class="small" href="{{ url_for('public.verify', slug=t.slug) }}">Public verify page →</a>
+  </div>
+</div>
+{% endif %}

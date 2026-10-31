@@ -7,8 +7,10 @@ until a new version is published; every version stays onchain.
 """
 import hashlib
 import json
+import time
 
 from flask import current_app
+from sqlalchemy.exc import IntegrityError
 
 from .extensions import db
 from .models import Anchor, Tournament
@@ -16,6 +18,7 @@ from .ratings import career_ratings
 
 SCHEMA = "bracketeer.results/1"
 EXTEND_BATCH = 50  # the contract's per-call limit for extend()
+VERIFY_CACHE_SECONDS = 60  # the public verify page reuses an onchain read this long, so visitors can't drain RPC quota
 NETWORKS = {
     "testnet": ("https://soroban-testnet.stellar.org", "Test SDF Network ; September 2015"),
     "mainnet": ("", "Public Global Stellar Network ; September 2015"),  # mainnet needs a third-party RPC URL
@@ -129,14 +132,22 @@ class Chain:
         sent, done = tx.send_transaction_response, tx.get_transaction_response
         return getattr(sent, "hash", None), getattr(done, "ledger", None)
 
-    def latest(self, key):
-        from stellar_sdk import scval
-
-        value = scval.to_native(self._read("latest", scval.to_string(key)))
+    @staticmethod
+    def _record_dict(value):
         if not value:
             return None
         return {"version": value["version"], "hash": value["hash"].hex(), "ledger": value["ledger"],
                 "timestamp": value["timestamp"]}
+
+    def latest(self, key):
+        from stellar_sdk import scval
+
+        return self._record_dict(scval.to_native(self._read("latest", scval.to_string(key))))
+
+    def get(self, key, version):
+        from stellar_sdk import scval
+
+        return self._record_dict(scval.to_native(self._read("get", scval.to_string(key), scval.to_uint32(version))))
 
     def versions(self, key) -> int:
         from stellar_sdk import scval
@@ -165,7 +176,10 @@ def get_chain() -> Chain:
     rpc = _cfg("STELLAR_RPC_URL") or rpc
     if not rpc:
         raise OnchainError(f"Set STELLAR_RPC_URL for the {network()} network.")
-    return Chain(_cfg("STELLAR_CONTRACT_ID"), rpc, passphrase, _cfg("STELLAR_SECRET_KEY"))
+    try:
+        return Chain(_cfg("STELLAR_CONTRACT_ID"), rpc, passphrase, _cfg("STELLAR_SECRET_KEY"))
+    except Exception:  # a malformed key or contract id; never echo the error, which can contain the secret
+        raise OnchainError("STELLAR_SECRET_KEY or STELLAR_CONTRACT_ID is not valid. Check the server settings.") from None
 
 
 # ---------- publish / verify / keep alive ----------
@@ -190,6 +204,9 @@ def publish(t: Tournament, by: str = "") -> tuple[Anchor, bool]:
         raise OnchainError("Only finished tournaments can be published. Set the status to Finished first.")
     chain, key, digest = get_chain(), chain_key(t), results_hash(t)
     latest = chain.latest(key)
+    _forget(key)  # whatever happens next, the verify page should re-read the chain
+    if latest:
+        _backfill(t, chain, key, latest["version"])
     if latest and latest["hash"] == digest:
         return _record(t, key, latest["version"], digest, None, latest["ledger"], by), False
     version = (latest["version"] if latest else 0) + 1
@@ -206,6 +223,8 @@ def publish(t: Tournament, by: str = "") -> tuple[Anchor, bool]:
 
 
 def _record(t, key, version, digest, tx_hash, ledger, by) -> Anchor:
+    """Save one onchain version locally. Idempotent: a version already saved (by this or a concurrent request)
+    is returned, not duplicated, so recording can always be retried after a successful publish."""
     anchor = next((a for a in published(t) if a.version == version), None)
     if anchor is None:
         anchor = Anchor(tournament=t, chain_key=key, version=version, hash=digest, network=network(),
@@ -213,14 +232,57 @@ def _record(t, key, version, digest, tx_hash, ledger, by) -> Anchor:
         db.session.add(anchor)
     elif tx_hash and not anchor.tx_hash:
         anchor.tx_hash = tx_hash
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:  # another request saved this version first
+        db.session.rollback()
+        db.session.expire(t, ["anchors"])
+        anchor = next(a for a in published(t) if a.version == version)
     return anchor
 
 
-def verify(t: Tournament) -> dict:
-    """Compare the fingerprint of the site's current data with the latest one onchain."""
-    digest = results_hash(t)
-    record = get_chain().latest(chain_key(t))
+def _backfill(t, chain, key, upto):
+    """Save onchain versions 1..upto that are missing locally (e.g. a publish whose local save failed), so the
+    site's history stays complete even if the results changed before anyone retried."""
+    have = {a.version for a in published(t)}
+    for version in range(1, upto + 1):
+        if version not in have:
+            rec = chain.get(key, version)
+            if rec:
+                _record(t, key, version, rec["hash"], None, rec["ledger"], "")
+
+
+def status(t: Tournament):
+    """What the site can say without asking the chain: None if nothing is published here, otherwise the latest
+    published version and whether today's results still match it. Cheap enough for every tournament page."""
+    if not enabled():
+        return None
+    versions = published(t)
+    if not versions:
+        return None
+    latest = versions[-1]
+    return {"latest": latest, "versions": versions, "matches": latest.hash == results_hash(t), "key": latest.chain_key}
+
+
+def _cache():
+    return current_app.extensions.setdefault("onchain_latest", {})
+
+
+def _forget(key):
+    _cache().pop((network(), _cfg("STELLAR_CONTRACT_ID"), key), None)
+
+
+def verify(t: Tournament, max_age: float = VERIFY_CACHE_SECONDS) -> dict:
+    """Compare the fingerprint of the site's current data with the latest one onchain. The onchain read is cached
+    briefly per tournament (publishing clears it), so repeated page loads don't each cost an RPC call."""
+    digest, key = results_hash(t), chain_key(t)
+    cache_key = (network(), _cfg("STELLAR_CONTRACT_ID"), key)
+    hit = _cache().get(cache_key)
+    if hit and time.monotonic() - hit[0] < max_age:
+        record = hit[1]
+    else:
+        record = get_chain().latest(key)
+        _cache()[cache_key] = (time.monotonic(), record)
     return {"local": digest, "onchain": record, "match": bool(record) and record["hash"] == digest}
 
 

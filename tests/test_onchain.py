@@ -27,6 +27,10 @@ class FakeChain:
     def versions(self, key):
         return len(self.records.get(key, []))
 
+    def get(self, key, version):
+        recs = self.records.get(key, [])
+        return dict(recs[version - 1]) if 0 < version <= len(recs) else None
+
     def publish(self, key, hex_hash, version):
         self.calls.append(("publish", key, version))
         recs = self.records.setdefault(key, [])
@@ -241,3 +245,120 @@ def test_sdk_and_network_errors_become_onchain_errors():
     chain.client = type("C", (), {"invoke": lambda self, fn, args, **kw: (_ for _ in ()).throw(Boom("rpc down"))})()
     with pytest.raises(onchain.OnchainError, match="rpc down"):
         chain.versions("slug")
+
+
+# ---------- stage 3: admin button, public badge and verify page ----------
+
+def test_admin_publish_button_flow(chain, admin, finished, db):
+    page = admin.get(f"/admin/t/{finished.id}").data
+    assert b"Verified on Stellar" in page and b"Publish to Stellar" in page
+    resp = admin.post(f"/admin/t/{finished.id}/publish", follow_redirects=True)
+    assert b"Published v1" in resp.data and b"v1 matches" in resp.data and b"Up to date" in resp.data
+    assert Anchor.query.one().published_by == "td"
+    finished.games[0].score1 = 430
+    finished.games[0].spread = 50
+    db.session.commit()
+    page = admin.get(f"/admin/t/{finished.id}").data
+    assert b"Changed since v1" in page and b"Publish v2" in page
+
+
+def test_publish_needs_a_finished_tournament_and_the_right_game(chain, admin, client, finished, db):
+    finished.status = "live"
+    db.session.commit()
+    resp = admin.post(f"/admin/t/{finished.id}/publish", follow_redirects=True)
+    assert b"Only finished tournaments" in resp.data and Anchor.query.count() == 0
+    finished.status = "finished"
+    from bracketeer.models import AdminUser
+    chess_only = AdminUser(username="cara", sports=["chess"])
+    chess_only.set_password("password123")
+    db.session.add(chess_only)
+    db.session.commit()
+    client.post("/admin/logout")
+    client.post("/admin/login", data={"username": "cara", "password": "password123"})
+    assert client.post(f"/admin/t/{finished.id}/publish").status_code == 403
+    assert Anchor.query.count() == 0
+
+
+def test_public_badge_and_verify_page(chain, client, finished, db, monkeypatch):
+    url = f"/t/{finished.slug}"
+    assert b"Verified on Stellar" not in client.get(url).data  # nothing published yet
+    page = client.get(f"{url}/verify").data
+    assert b"Not published yet" in page and onchain.results_hash(finished).encode() in page
+    onchain.publish(finished)
+    page = client.get(url).data
+    assert b"Verified on Stellar" in page and b'href="/t/' + finished.slug.encode() + b'/verify"' in page
+    assert b"These results match Stellar" in client.get(f"{url}/verify").data
+    # results.json is exactly what was fingerprinted.
+    import hashlib
+    body = client.get(f"{url}/results.json").data
+    assert hashlib.sha256(body).hexdigest() == Anchor.query.one().hash
+    # After an edit: the badge warns and the verify page says it changed.
+    finished.games[0].score2 = 100
+    db.session.commit()
+    assert b"Changed since published" in client.get(url).data
+    assert b"changed since they were published" in client.get(f"{url}/verify").data
+    # Stellar unreachable: the page still renders, with a clear message.
+    monkeypatch.setattr(chain, "latest", lambda key: (_ for _ in ()).throw(onchain.OnchainError("rpc down")))
+    client.application.extensions.pop("onchain_latest", None)  # past the cache, so the outage is seen
+    page = client.get(f"{url}/verify").data
+    assert b"Couldn't reach Stellar" in page and b"rpc down" not in page  # details stay in the server log
+
+
+def test_nothing_onchain_shows_without_config(app, chain, client, finished, db):
+    onchain.publish(finished)  # a published record exists...
+    assert b"Verified on Stellar" in client.get(f"/t/{finished.slug}").data
+    app.config.update(STELLAR_CONTRACT_ID="", STELLAR_SECRET_KEY="")  # ...but with Stellar switched off, none of it shows
+    assert client.get(f"/t/{finished.slug}/verify").status_code == 404
+    assert b"Stellar" not in client.get(f"/t/{finished.slug}").data
+
+
+def test_missing_local_versions_are_backfilled(chain, finished, db):
+    # v1 landed onchain but was never saved here (say the database write failed), then the results changed.
+    chain.records[finished.slug] = [{"version": 1, "hash": "1" * 64, "ledger": 77, "timestamp": 0}]
+    anchor, created = onchain.publish(finished)
+    assert created and anchor.version == 2
+    assert [(a.version, a.hash[:1], a.ledger) for a in finished.anchors] == [(1, "1", 77), (2, anchor.hash[:1], 1002)]
+
+
+def test_recording_tolerates_a_concurrent_save(chain, finished, db, monkeypatch):
+    first, _ = onchain.publish(finished)
+    real = onchain.published
+    calls = {"n": 0}
+
+    def stale_once(t):  # this request didn't see the row another request just saved
+        calls["n"] += 1
+        return [] if calls["n"] == 1 else real(t)
+
+    monkeypatch.setattr(onchain, "published", stale_once)
+    again = onchain._record(finished, finished.slug, 1, first.hash, None, 1001, "")
+    assert again.id == first.id and Anchor.query.count() == 1
+
+
+def test_invalid_secret_is_a_clear_error_and_never_echoed(app, admin, finished, db):
+    secret = "SNOTAREALKEY123"
+    app.config.update(STELLAR_CONTRACT_ID="C" + "A" * 55, STELLAR_SECRET_KEY=secret)
+    with pytest.raises(onchain.OnchainError) as err:
+        onchain.get_chain()
+    assert "not valid" in str(err.value) and secret not in str(err.value)
+    resp = admin.post(f"/admin/t/{finished.id}/publish", follow_redirects=True)
+    assert resp.status_code == 200 and b"not valid" in resp.data and secret.encode() not in resp.data
+
+
+def test_verify_page_caches_the_onchain_read(chain, client, finished, db, monkeypatch):
+    onchain.publish(finished)
+    reads = {"n": 0}
+    real = chain.latest
+
+    def counting(key):
+        reads["n"] += 1
+        return real(key)
+
+    monkeypatch.setattr(chain, "latest", counting)
+    for _ in range(3):
+        assert b"These results match Stellar" in client.get(f"/t/{finished.slug}/verify").data
+    assert reads["n"] == 1  # one RPC read for three page loads
+    finished.games[0].score1 = 999  # a local edit is still seen at once: only the chain read is cached
+    db.session.commit()
+    assert b"changed since they were published" in client.get(f"/t/{finished.slug}/verify").data
+    onchain.publish(finished)  # publishing clears the cache, so the new version shows straight away
+    assert b"version 2" in client.get(f"/t/{finished.slug}/verify").data
