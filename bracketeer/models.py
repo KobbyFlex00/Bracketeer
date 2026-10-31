@@ -81,6 +81,27 @@ class Tournament(db.Model):
         return (self.held_on or created.date(), created.replace(tzinfo=None), self.id or 0)
 
 
+class Anchor(db.Model):
+    """One version of a tournament's results fingerprint published to the Stellar results registry."""
+
+    __tablename__ = "anchors"
+    __table_args__ = (db.UniqueConstraint("tournament_id", "network", "contract_id", "version", name="uq_anchor_version"),)
+    id = db.Column(db.Integer, primary_key=True)
+    tournament_id = db.Column(db.Integer, db.ForeignKey("tournaments.id"), nullable=False, index=True)
+    chain_key = db.Column(db.String(140), nullable=False)  # the slug it was first published under; survives renames
+    version = db.Column(db.Integer, nullable=False)
+    hash = db.Column(db.String(64), nullable=False)  # hex SHA-256 of the canonical results
+    network = db.Column(db.String(20), nullable=False)
+    contract_id = db.Column(db.String(56), nullable=False)
+    tx_hash = db.Column(db.String(64))  # None when the version was found already onchain (e.g. after a retry)
+    ledger = db.Column(db.Integer)
+    published_at = db.Column(db.DateTime(timezone=True), default=_now)
+    published_by = db.Column(db.String(80), default="")
+
+    tournament = db.relationship("Tournament", backref=db.backref("anchors", cascade="all, delete-orphan",
+                                                                  order_by="Anchor.version"))
+
+
 class Player(db.Model):
     """One person (or team) across every tournament of a sport; carries their career rating."""
 

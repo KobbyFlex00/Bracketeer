@@ -27,5 +27,11 @@ services:
         sync: false # paste the direct (unpooled) Neon URL; used only for migrations
       - key: ADMIN_USERNAME
         value: admin
+      - key: STELLAR_NETWORK
+        value: testnet
+      - key: STELLAR_CONTRACT_ID
+        sync: false # results-registry contract id (C...), see contracts/README.md
+      - key: STELLAR_SECRET_KEY
+        sync: false # secret (S...) of the contract's admin key; publishes result fingerprints
       - key: ADMIN_PASSWORD
         sync: false # choose a strong password (8+ characters) when Render asks

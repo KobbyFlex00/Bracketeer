@@ -33,3 +33,9 @@ class Config:
     MAX_CONTENT_LENGTH = 2 * 1024 * 1024
     SITE_NAME = os.environ.get("SITE_NAME", "Bracketeer")
     REFRESH_SECONDS = int(os.environ.get("REFRESH_SECONDS", "60"))
+    # Stellar: publishing result fingerprints to the results-registry contract (contracts/). All optional;
+    # without STELLAR_CONTRACT_ID nothing onchain is shown, without STELLAR_SECRET_KEY nothing can be published.
+    STELLAR_NETWORK = os.environ.get("STELLAR_NETWORK", "testnet")
+    STELLAR_RPC_URL = os.environ.get("STELLAR_RPC_URL", "")
+    STELLAR_CONTRACT_ID = os.environ.get("STELLAR_CONTRACT_ID", "").strip()
+    STELLAR_SECRET_KEY = os.environ.get("STELLAR_SECRET_KEY", "").strip()
