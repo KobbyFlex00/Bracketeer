@@ -26,6 +26,11 @@ For every sport:
   in each category (rating, biggest climber, wins, win rate, top score, average score, average spread). The
   all-clubs view adds a club table with average rating and results against other clubs. A player keeps one
   rating counting every game, including inter-club ones, and is listed under the club of their latest entry.
+- **Verified on Stellar** (in progress): finished tournaments can publish a fingerprint (SHA-256) of their
+  results, standings and ratings to a Soroban contract on Stellar (`contracts/`), so anyone can check the site's
+  results haven't been changed. Set `STELLAR_CONTRACT_ID` and `STELLAR_SECRET_KEY`, then
+  `flask onchain-publish <slug>` (or `--all-finished`), `flask onchain-verify <slug>`, and every few months
+  `flask onchain-extend` to keep the records live. Corrections are published as new versions; old ones stay.
 - **Admin roles**: the login from `ADMIN_USERNAME` / `ADMIN_PASSWORD` is a **super admin**. On
   **Dashboard → Admins** a super admin adds other admins and ticks the games each one manages (Scrabble,
   Chess, Football, and any game added later). A game admin only sees and changes their own games'
@@ -106,6 +111,7 @@ bracketeer/
   models.py          Tournament, Player, Participant, Game, AdminUser
   engine.py          round generation (standings + pairing system → saved games)
   ratings.py         Elo, replayed across a sport's tournaments in date order (career ratings)
+  onchain.py         result fingerprints and publishing to the Stellar results registry
   players.py         linking tournament entries to career profiles; merge
   rankings.py        cross-tournament leaderboards and player records
   pairing/           swiss.py, round_robin.py, knockout.py, sides.py (pure, unit-tested)
@@ -115,6 +121,7 @@ bracketeer/
   backup.py          JSON backup/restore and legacy import
   templates/ static/
 migrations/          database schema (Flask-Migrate / Alembic)
+contracts/           Soroban (Stellar) results-registry contract, in Rust
 tests/               pytest suite
 legacy_data/         tournaments from the old atu-scrabble-engine
 render.yaml          Render deployment blueprint

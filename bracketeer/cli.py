@@ -3,9 +3,10 @@ import os
 
 import click
 
+from . import onchain
 from .backup import import_data, name_from_filename
 from .extensions import db
-from .models import AdminUser
+from .models import AdminUser, Tournament
 
 
 def ensure_admin(username: str, password: str) -> AdminUser:
@@ -48,3 +49,47 @@ def register_cli(app):
         """Create tables directly (handy for quick local testing; production uses `flask db upgrade`)."""
         db.create_all()
         click.echo("Tables created.")
+
+    def _by_slug(slug):
+        t = Tournament.query.filter_by(slug=slug).first()
+        if t is None:
+            raise click.ClickException(f"No tournament with slug {slug!r}.")
+        return t
+
+    @app.cli.command("onchain-publish")
+    @click.argument("slug", required=False)
+    @click.option("--all-finished", is_flag=True, help="Publish every finished tournament whose results changed.")
+    def onchain_publish_cmd(slug, all_finished):
+        """Publish result fingerprints to the Stellar results registry."""
+        if bool(slug) == all_finished:
+            raise click.ClickException("Give one tournament slug, or --all-finished.")
+        targets = Tournament.query.filter_by(status="finished").order_by(Tournament.id).all() if all_finished else [_by_slug(slug)]
+        for t in targets:
+            try:
+                anchor, created = onchain.publish(t, by="cli")
+            except onchain.OnchainError as e:
+                raise click.ClickException(f"{t.slug}: {e}") from None
+            state = "published" if created else "already up to date"
+            link = f" {onchain.explorer_url('tx', anchor.tx_hash)}" if anchor.tx_hash else ""
+            click.echo(f"{t.slug}: v{anchor.version} {state} ({anchor.hash[:12]}…){link}")
+
+    @app.cli.command("onchain-verify")
+    @click.argument("slug")
+    def onchain_verify_cmd(slug):
+        """Compare a tournament's current results with its latest fingerprint onchain."""
+        if not onchain.enabled():
+            raise click.ClickException("STELLAR_CONTRACT_ID is not set.")
+        result = onchain.verify(_by_slug(slug))
+        click.echo(f"site:    {result['local']}")
+        rec = result["onchain"]
+        click.echo(f"onchain: {rec['hash']} (v{rec['version']}, ledger {rec['ledger']})" if rec else "onchain: not published")
+        click.echo("MATCH" if result["match"] else "MISMATCH" if rec else "NOT PUBLISHED")
+        if rec and not result["match"]:
+            raise SystemExit(1)
+
+    @app.cli.command("onchain-extend")
+    def onchain_extend_cmd():
+        """Keep every published version alive on Stellar (run every few months)."""
+        if not onchain.can_publish():
+            raise click.ClickException("STELLAR_CONTRACT_ID and STELLAR_SECRET_KEY must be set.")
+        click.echo(f"Extended in {onchain.extend_all()} call(s).")
