@@ -5,6 +5,14 @@ finishes, Bracketeer serialises its games, standings and ratings deterministical
 under the tournament's slug. Anyone can then recompute the hash from the site's data and compare it with the
 chain. A correction is published as a new version; earlier versions stay readable.
 
+## Deployed
+
+| Network | Contract id |
+|---|---|
+| testnet | [`CDDSU7QOQNDCUBLYX3TBTEFAEAX4G7KE64YMLE7MKRR4TKTRAGQOLWFP`](https://stellar.expert/explorer/testnet/contract/CDDSU7QOQNDCUBLYX3TBTEFAEAX4G7KE64YMLE7MKRR4TKTRAGQOLWFP) |
+
+Admin is currently a temporary deploy key; it moves to the club's own key with `set_admin`.
+
 ## Interface
 
 | Function | Who | What |
@@ -24,7 +32,7 @@ Records live in persistent storage with their TTL extended to the network maximu
 
 ```bash
 rustup target add wasm32v1-none
-cargo install --locked stellar-cli      # needs libdbus-1-dev + pkg-config on Linux
+cargo install --locked stellar-cli      # needs libdbus-1-dev + pkg-config on Linux, ~6 GB RAM to compile
 cd contracts
 cargo test                              # unit tests (soroban-sdk testutils)
 stellar contract build                  # -> target/wasm32v1-none/release/results_registry.wasm
