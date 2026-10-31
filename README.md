@@ -26,11 +26,14 @@ For every sport:
   in each category (rating, biggest climber, wins, win rate, top score, average score, average spread). The
   all-clubs view adds a club table with average rating and results against other clubs. A player keeps one
   rating counting every game, including inter-club ones, and is listed under the club of their latest entry.
-- **Verified on Stellar** (in progress): finished tournaments can publish a fingerprint (SHA-256) of their
-  results, standings and ratings to a Soroban contract on Stellar (`contracts/`), so anyone can check the site's
-  results haven't been changed. Set `STELLAR_CONTRACT_ID` and `STELLAR_SECRET_KEY`, then
-  `flask onchain-publish <slug>` (or `--all-finished`), `flask onchain-verify <slug>`, and every few months
-  `flask onchain-extend` to keep the records live. Corrections are published as new versions; old ones stay.
+- **Verified on Stellar**: a finished tournament can publish a fingerprint (SHA-256) of its results,
+  standings and ratings to a Soroban contract on Stellar (`contracts/`). TDs click **Publish to Stellar** on the
+  tournament's Overview tab; the public page then shows **✓ Verified on Stellar** (or a warning if the results
+  changed afterwards), and `/t/<slug>/verify` checks the live chain and offers `results.json` so anyone can
+  recompute the hash themselves. Corrections are published as new versions; old ones stay. Configure with
+  `STELLAR_CONTRACT_ID` and `STELLAR_SECRET_KEY`; the same works from the CLI with `flask onchain-publish <slug>`
+  (or `--all-finished`) and `flask onchain-verify <slug>`. Run `flask onchain-extend` every few months to keep
+  the records live.
 - **Admin roles**: the login from `ADMIN_USERNAME` / `ADMIN_PASSWORD` is a **super admin**. On
   **Dashboard → Admins** a super admin adds other admins and ticks the games each one manages (Scrabble,
   Chess, Football, and any game added later). A game admin only sees and changes their own games'

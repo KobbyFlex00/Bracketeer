@@ -6,6 +6,7 @@ from datetime import date
 from flask import Blueprint, Response, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
+from .. import onchain
 from ..backup import export_tournament, import_data, name_from_filename
 from ..engine import PairingError, delete_round, generate_round, unique_slug
 from ..extensions import db
@@ -158,6 +159,8 @@ def tournament(tid):
         "admin/tournament.html", t=t, rules=t.rules, tab=tab, rounds=rounds,
         standings=t.rules.standings(t), statuses=STATUSES, default_system=default_system(t),
         active=[p for p in t.participants if p.active],
+        onchain_enabled=onchain.enabled(), onchain_can_publish=onchain.can_publish(), onchain_network=onchain.network(),
+        onchain_status=onchain.status(t) if tab == "overview" else None, explorer=onchain.explorer_url,
     )
 
 
@@ -254,6 +257,23 @@ def manage_player(plid):
         return redirect(url_for("admin.players", sport=pl.sport))
     db.session.commit()
     return redirect(url_for("admin.players", sport=pl.sport))
+
+
+# ---------- Stellar ----------
+
+@bp.route("/t/<int:tid>/publish", methods=["POST"])
+def publish_onchain(tid):
+    t = _tournament(tid)
+    try:
+        anchor, created = onchain.publish(t, by=current_user.username)
+    except onchain.OnchainError as e:
+        flash(str(e), "danger")
+        return _back(t, "overview")
+    if created:
+        flash(f"Published v{anchor.version} of the results to Stellar.", "success")
+    else:
+        flash(f"Already on Stellar: v{anchor.version} matches the current results.", "success")
+    return _back(t, "overview")
 
 
 # ---------- participants ----------

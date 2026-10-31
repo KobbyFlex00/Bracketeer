@@ -1,8 +1,9 @@
 import csv
 import io
 
-from flask import Blueprint, Response, abort, render_template, request
+from flask import Blueprint, Response, abort, current_app, render_template, request
 
+from .. import onchain
 from ..engine import champion, knockout_rounds
 from ..extensions import db
 from ..models import Participant, Player, Tournament
@@ -26,7 +27,7 @@ def _round_arg(t):
 
 
 def _ctx(t, page, **kw):
-    return dict(t=t, rules=t.rules, page=page, live=t.status == "live", **kw)
+    return dict(t=t, rules=t.rules, page=page, live=t.status == "live", stellar=onchain.status(t), **kw)
 
 
 @bp.route("/healthz")
@@ -179,6 +180,30 @@ def profile(slug, pid):
     row = next((r for r in rows if r.p.id == p.id), None)
     games = [g for g in t.games if p.id in (g.p1_id, g.p2_id)]
     return render_template("public/profile.html", **_ctx(t, "standings", p=p, row=row, games=games, total=len(rows)))
+
+
+@bp.route("/t/<slug>/results.json")
+def results_json(slug):
+    """The exact bytes whose SHA-256 is published on Stellar, so anyone can recompute it."""
+    t = _by_slug(slug)
+    return Response(onchain.canonical_results(t), mimetype="application/json",
+                    headers={"Content-Disposition": f'inline; filename="{t.slug}-results.json"'})
+
+
+@bp.route("/t/<slug>/verify")
+def verify(slug):
+    t = _by_slug(slug)
+    if not onchain.enabled():
+        abort(404)
+    check, error = None, None
+    try:
+        check = onchain.verify(t)
+    except onchain.OnchainError as e:
+        error = str(e)
+    return render_template("public/verify.html", **_ctx(t, "verify", check=check, error=error,
+                                                         local_hash=onchain.results_hash(t), key=onchain.chain_key(t),
+                                                         contract=current_app.config["STELLAR_CONTRACT_ID"],
+                                                         network=onchain.network(), explorer=onchain.explorer_url))
 
 
 def _csv(t, name, header, rows):

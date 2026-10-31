@@ -241,3 +241,65 @@ def test_sdk_and_network_errors_become_onchain_errors():
     chain.client = type("C", (), {"invoke": lambda self, fn, args, **kw: (_ for _ in ()).throw(Boom("rpc down"))})()
     with pytest.raises(onchain.OnchainError, match="rpc down"):
         chain.versions("slug")
+
+
+# ---------- stage 3: admin button, public badge and verify page ----------
+
+def test_admin_publish_button_flow(chain, admin, finished, db):
+    page = admin.get(f"/admin/t/{finished.id}").data
+    assert b"Verified on Stellar" in page and b"Publish to Stellar" in page
+    resp = admin.post(f"/admin/t/{finished.id}/publish", follow_redirects=True)
+    assert b"Published v1" in resp.data and b"v1 matches" in resp.data and b"Up to date" in resp.data
+    assert Anchor.query.one().published_by == "td"
+    finished.games[0].score1 = 430
+    finished.games[0].spread = 50
+    db.session.commit()
+    page = admin.get(f"/admin/t/{finished.id}").data
+    assert b"Changed since v1" in page and b"Publish v2" in page
+
+
+def test_publish_needs_a_finished_tournament_and_the_right_game(chain, admin, client, finished, db):
+    finished.status = "live"
+    db.session.commit()
+    resp = admin.post(f"/admin/t/{finished.id}/publish", follow_redirects=True)
+    assert b"Only finished tournaments" in resp.data and Anchor.query.count() == 0
+    finished.status = "finished"
+    from bracketeer.models import AdminUser
+    chess_only = AdminUser(username="cara", sports=["chess"])
+    chess_only.set_password("password123")
+    db.session.add(chess_only)
+    db.session.commit()
+    client.post("/admin/logout")
+    client.post("/admin/login", data={"username": "cara", "password": "password123"})
+    assert client.post(f"/admin/t/{finished.id}/publish").status_code == 403
+    assert Anchor.query.count() == 0
+
+
+def test_public_badge_and_verify_page(chain, client, finished, db, monkeypatch):
+    url = f"/t/{finished.slug}"
+    assert b"Verified on Stellar" not in client.get(url).data  # nothing published yet
+    page = client.get(f"{url}/verify").data
+    assert b"Not published yet" in page and onchain.results_hash(finished).encode() in page
+    onchain.publish(finished)
+    page = client.get(url).data
+    assert b"Verified on Stellar" in page and b'href="/t/' + finished.slug.encode() + b'/verify"' in page
+    assert b"These results match Stellar" in client.get(f"{url}/verify").data
+    # results.json is exactly what was fingerprinted.
+    import hashlib
+    body = client.get(f"{url}/results.json").data
+    assert hashlib.sha256(body).hexdigest() == Anchor.query.one().hash
+    # After an edit: the badge warns and the verify page says it changed.
+    finished.games[0].score2 = 100
+    db.session.commit()
+    assert b"Changed since published" in client.get(url).data
+    assert b"changed since they were published" in client.get(f"{url}/verify").data
+    # Stellar unreachable: the page still renders, with a clear message.
+    monkeypatch.setattr(chain, "latest", lambda key: (_ for _ in ()).throw(onchain.OnchainError("rpc down")))
+    page = client.get(f"{url}/verify").data
+    assert b"Couldn't reach Stellar" in page and b"rpc down" in page
+
+
+def test_nothing_onchain_shows_without_config(app, client, finished, db):
+    app.config.update(STELLAR_CONTRACT_ID="", STELLAR_SECRET_KEY="")
+    assert client.get(f"/t/{finished.slug}/verify").status_code == 404
+    assert b"Stellar" not in client.get(f"/t/{finished.slug}").data

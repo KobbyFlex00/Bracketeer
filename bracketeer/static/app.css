@@ -276,3 +276,18 @@ details > summary { cursor: pointer; color: var(--accent); font-weight: 500; }
 .sportboxes[disabled] { opacity: .5; }
 .sportboxes legend { padding: 0 .25rem; }
 label.check { display: inline-flex; align-items: center; gap: .4rem; font-weight: 500; margin: 0; }
+
+/* Verified on Stellar */
+.stellar-badge { display: inline-block; vertical-align: middle; font-size: .75rem; font-weight: 600; padding: .15rem .6rem; border-radius: 999px; text-decoration: none; }
+.stellar-badge:hover { text-decoration: none; filter: brightness(.95); }
+.stellar-badge.ok { background: var(--win-soft); color: var(--win); }
+.stellar-badge.changed { background: var(--draw-soft); color: var(--draw); }
+.banner .stellar-badge { text-decoration: none; }
+.badge.warn { background: var(--draw-soft); color: var(--draw); }
+.verify-result { border-left: 4px solid var(--border); }
+.verify-result.ok { border-left-color: var(--win); }
+.verify-result.bad { border-left-color: var(--draw); }
+.verify-result h2 { margin-bottom: .25rem; }
+code.hash, code.cmd { display: block; overflow-wrap: anywhere; white-space: normal; font-size: .8rem; background: var(--surface-2); padding: .45rem .55rem; border-radius: 6px; }
+.versions { margin: .25rem 0 0; padding-left: 1.1rem; }
+.steps li { margin-bottom: .5rem; }

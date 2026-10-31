@@ -217,6 +217,18 @@ def _record(t, key, version, digest, tx_hash, ledger, by) -> Anchor:
     return anchor
 
 
+def status(t: Tournament):
+    """What the site can say without asking the chain: None if nothing is published here, otherwise the latest
+    published version and whether today's results still match it. Cheap enough for every tournament page."""
+    if not enabled():
+        return None
+    versions = published(t)
+    if not versions:
+        return None
+    latest = versions[-1]
+    return {"latest": latest, "versions": versions, "matches": latest.hash == results_hash(t), "key": latest.chain_key}
+
+
 def verify(t: Tournament) -> dict:
     """Compare the fingerprint of the site's current data with the latest one onchain."""
     digest = results_hash(t)
