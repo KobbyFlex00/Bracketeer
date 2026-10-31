@@ -4,7 +4,7 @@
 <div class="card verify-result {{ 'ok' if check and check.match else 'bad' if rec else 'none' }}">
   {% if error %}
     <h2>Couldn't reach Stellar just now</h2>
-    <p class="muted">The check below shows what this site holds; try again in a moment for the live onchain comparison. <span class="small">({{ error }})</span></p>
+    <p class="muted">The check below shows what this site holds; try again in a moment for the live onchain comparison.</p>
   {% elif check and check.match %}
     <h2>✓ These results match Stellar</h2>
     <p class="muted">The fingerprint of the results on this site is identical to version {{ rec.version }} published on the Stellar {{ network }}, so they haven't changed since.</p>

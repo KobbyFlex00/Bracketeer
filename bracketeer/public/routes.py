@@ -195,11 +195,13 @@ def verify(slug):
     t = _by_slug(slug)
     if not onchain.enabled():
         abort(404)
-    check, error = None, None
+    check, error = None, False
     try:
         check = onchain.verify(t)
     except onchain.OnchainError as e:
-        error = str(e)
+        # Details stay in the server log: RPC errors can include the provider URL and any API key in it.
+        current_app.logger.warning("Stellar verify failed for %s: %s", t.slug, e)
+        error = True
     return render_template("public/verify.html", **_ctx(t, "verify", check=check, error=error,
                                                          local_hash=onchain.results_hash(t), key=onchain.chain_key(t),
                                                          contract=current_app.config["STELLAR_CONTRACT_ID"],
