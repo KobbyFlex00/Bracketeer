@@ -17,3 +17,8 @@ __pycache__/
 instance/
 output/
 node_modules/
+
+# Soroban contract build output
+contracts/target/
+contracts/**/test_snapshots/
+contracts/.stellar/
