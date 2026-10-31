@@ -4,12 +4,12 @@ import json
 from datetime import date
 
 from flask import Blueprint, Response, abort, flash, redirect, render_template, request, url_for
-from flask_login import login_required
+from flask_login import current_user, login_required
 
 from ..backup import export_tournament, import_data, name_from_filename
 from ..engine import PairingError, delete_round, generate_round, unique_slug
 from ..extensions import db
-from ..models import PENDING, Game, Participant, Player, Tournament
+from ..models import PENDING, AdminUser, Game, Participant, Player, Tournament
 from ..players import drop_if_empty, link, merge, relink_on_rename
 from ..ratings import career_ratings
 from ..sports import SPORTS
@@ -26,8 +26,23 @@ def _require_login():
     pass
 
 
+def _require(sport):
+    """Stop here unless the signed-in admin manages this sport."""
+    if not current_user.can_manage(sport):
+        abort(403)
+
+
 def _tournament(tid) -> Tournament:
-    return db.get_or_404(Tournament, tid)
+    t = db.get_or_404(Tournament, tid)
+    _require(t.sport)
+    return t
+
+
+def _sport_arg():
+    """The ?sport= the admin asked for if they manage it, else their first sport (None if they have none)."""
+    allowed = current_user.managed(SPORTS)
+    sport = request.args.get("sport")
+    return sport if sport in allowed else (allowed[0] if allowed else None)
 
 
 def _back(t, tab, **kw):
@@ -70,12 +85,13 @@ def default_system(t):
 
 @bp.route("/")
 def home():
-    sport = request.args.get("sport", "scrabble")
-    if sport not in SPORTS:
-        sport = "scrabble"
+    sport = _sport_arg()
+    if sport is None:
+        return render_template("admin/no_sports.html")
     tournaments = Tournament.query.filter_by(sport=sport).order_by(Tournament.created_at.desc()).all()
-    counts = {k: Tournament.query.filter_by(sport=k).count() for k in SPORTS}
-    return render_template("admin/home.html", sport=SPORTS[sport], tournaments=tournaments, counts=counts)
+    allowed = current_user.managed(SPORTS)
+    counts = {k: Tournament.query.filter_by(sport=k).count() for k in allowed}
+    return render_template("admin/home.html", sport=SPORTS[sport], tournaments=tournaments, counts=counts, allowed=allowed)
 
 
 @bp.route("/tournaments", methods=["POST"])
@@ -85,6 +101,7 @@ def create_tournament():
     try:
         if rules is None:
             raise ValueError("Pick a sport.")
+        _require(rules.key)
         name = _clean_name(request.form.get("name"), "Tournament name")
         fmt = request.form.get("format")
         if fmt not in rules.formats:
@@ -101,6 +118,15 @@ def create_tournament():
     return _back(t, "participants")
 
 
+def _file_sport(data):
+    """Legacy engine files are always Scrabble; Bracketeer backups name their sport."""
+    if isinstance(data, list):
+        return "scrabble"
+    if isinstance(data, dict):
+        return (data.get("tournament") or {}).get("sport")
+    return None
+
+
 @bp.route("/import", methods=["POST"])
 def import_file():
     upload = request.files.get("file")
@@ -109,6 +135,9 @@ def import_file():
         return redirect(url_for("admin.home"))
     try:
         data = json.load(upload.stream)
+        sport = _file_sport(data)
+        if sport in SPORTS and not current_user.can_manage(sport):
+            raise ValueError(f"You don't manage {SPORTS[sport].name}, so you can't import its tournaments.")
         t = import_data(data, name_from_filename(upload.filename))
     except (ValueError, KeyError, TypeError) as e:
         db.session.rollback()
@@ -189,9 +218,9 @@ def export_json(tid):
 
 @bp.route("/players")
 def players():
-    sport = request.args.get("sport", "scrabble")
-    if sport not in SPORTS:
-        sport = "scrabble"
+    sport = _sport_arg()
+    if sport is None:
+        return render_template("admin/no_sports.html")
     rules = SPORTS[sport]
     career = career_ratings(sport) if rules.has_ratings else None
     rows = []
@@ -205,6 +234,7 @@ def players():
 @bp.route("/players/<int:plid>", methods=["POST"])
 def manage_player(plid):
     pl = db.get_or_404(Player, plid)
+    _require(pl.sport)
     action = request.form.get("action")
     try:
         if action == "rename":
@@ -212,7 +242,7 @@ def manage_player(plid):
             flash(f"Renamed to {pl.name}.", "success")
         elif action == "merge":
             target = db.session.get(Player, int(request.form.get("into") or 0))
-            if target is None:
+            if target is None or target.sport != pl.sport:
                 raise ValueError("Pick who to merge into.")
             moved = merge(pl, target)
             flash(f"Merged {pl.name} into {target.name} ({moved} tournament entr{'y' if moved == 1 else 'ies'} moved).", "success")
@@ -449,3 +479,112 @@ def update_game(tid, gid):
         db.session.rollback()
         flash(str(e), "danger")
     return _back(t, "rounds", round=g.round)
+
+
+# ---------- admins (super admin only) & own account ----------
+
+def _require_super():
+    if not current_user.is_super:
+        abort(403)
+
+
+def _password(value, required=True):
+    value = value or ""
+    if not value and not required:
+        return None
+    if len(value) < 8:
+        raise ValueError("Passwords need at least 8 characters.")
+    return value
+
+
+def _sports_from(form):
+    return [k for k in SPORTS if form.get(f"sport_{k}")]
+
+
+def _supers_left(excluding):
+    return AdminUser.query.filter(AdminUser.is_super.is_(True), AdminUser.id != excluding.id).count()
+
+
+@bp.route("/admins")
+def admins():
+    _require_super()
+    users = AdminUser.query.order_by(AdminUser.is_super.desc(), AdminUser.username).all()
+    return render_template("admin/admins.html", users=users)
+
+
+@bp.route("/admins", methods=["POST"])
+def create_admin():
+    _require_super()
+    f = request.form
+    try:
+        username = _clean_name(f.get("username"), "Username")[:80]
+        if AdminUser.query.filter(db.func.lower(AdminUser.username) == username.lower()).first():
+            raise ValueError(f"There is already an admin called {username}.")
+        is_super = bool(f.get("is_super"))
+        sports = [] if is_super else _sports_from(f)
+        if not is_super and not sports:
+            raise ValueError("Tick at least one game for this admin to manage, or make them a super admin.")
+        user = AdminUser(username=username, is_super=is_super, sports=sports)
+        user.set_password(_password(f.get("password")))
+    except ValueError as e:
+        flash(str(e), "danger")
+        return redirect(url_for("admin.admins"))
+    db.session.add(user)
+    db.session.commit()
+    flash(f"Added {username}. Share the password with them; they can change it under Account.", "success")
+    return redirect(url_for("admin.admins"))
+
+
+@bp.route("/admins/<int:uid>", methods=["POST"])
+def manage_admin(uid):
+    _require_super()
+    user = db.get_or_404(AdminUser, uid)
+    f = request.form
+    action = f.get("action")
+    try:
+        if action == "update":
+            is_super = bool(f.get("is_super"))
+            if user.is_super and not is_super and not _supers_left(user):
+                raise ValueError("Keep at least one super admin.")
+            sports = [] if is_super else _sports_from(f)
+            if not is_super and not sports:
+                raise ValueError("Tick at least one game, or remove the admin instead.")
+            user.is_super, user.sports = is_super, sports
+            new_password = _password(f.get("password"), required=False)
+            if new_password:
+                user.set_password(new_password)
+            flash(f"Updated {user.username}.", "success")
+        elif action == "delete":
+            if user.id == current_user.id:
+                raise ValueError("You can't remove your own login.")
+            if user.is_super and not _supers_left(user):
+                raise ValueError("Keep at least one super admin.")
+            db.session.delete(user)
+            flash(f"Removed {user.username}.", "success")
+        else:
+            raise ValueError("Unknown action.")
+    except ValueError as e:
+        db.session.rollback()
+        flash(str(e), "danger")
+        return redirect(url_for("admin.admins"))
+    db.session.commit()
+    return redirect(url_for("admin.admins"))
+
+
+@bp.route("/account", methods=["GET", "POST"])
+def account():
+    if request.method == "POST":
+        try:
+            if not current_user.check_password(request.form.get("current", "")):
+                raise ValueError("Your current password is wrong.")
+            new = _password(request.form.get("new"))
+            if new != request.form.get("confirm"):
+                raise ValueError("The new passwords don't match.")
+        except ValueError as e:
+            flash(str(e), "danger")
+            return redirect(url_for("admin.account"))
+        current_user.set_password(new)
+        db.session.commit()
+        flash("Password changed.", "success")
+        return redirect(url_for("admin.account"))
+    return render_template("admin/account.html")

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Admins · {{ SITE_NAME }}{% endblock %}
+{% macro sport_boxes(chosen=[], is_super=false) %}
+  <fieldset class="sportboxes" {{ 'disabled' if is_super }}>
+    <legend class="small muted">Games they manage</legend>
+    {% for key, s in SPORTS.items() %}
+      <label class="check"><input type="checkbox" name="sport_{{ key }}" value="1" {{ 'checked' if key in chosen }}> {{ s.icon }} {{ s.name }}</label>
+    {% endfor %}
+  </fieldset>
+{% endmacro %}
+{% block content %}
+<div class="hero"><h1>Admins</h1>
+  <p class="muted" style="margin:0">Super admins manage everything, including this page. Every other admin manages only the games ticked for them. A new game added to Bracketeer appears here automatically.</p></div>
+<div class="grid2" style="align-items:start">
+  <div class="card pad0 tablewrap">
+  <table>
+    <thead><tr><th>Admin</th><th>Manages</th><th></th></tr></thead>
+    <tbody>
+    {% for u in users %}
+      <tr>
+        <td class="name"><strong>{{ u.username }}</strong>{% if u.id == current_user.id %} <span class="muted small">(you)</span>{% endif %}</td>
+        <td>{% if u.is_super %}<span class="badge finished">Super admin · all games</span>{% else %}{% for k in u.sports if k in SPORTS %}<span class="badge">{{ SPORTS[k].icon }} {{ SPORTS[k].name }}</span> {% endfor %}{% endif %}</td>
+        <td class="right">
+          <details class="inline"><summary class="small">Edit</summary>
+            <form method="post" action="{{ url_for('admin.manage_admin', uid=u.id) }}" class="stack" style="margin-top:.5rem;text-align:left" data-admin-form>
+              {% include "admin/_csrf.html" %}<input type="hidden" name="action" value="update">
+              <label class="check"><input type="checkbox" name="is_super" value="1" {{ 'checked' if u.is_super }} data-super> Super admin (all games, manages admins)</label>
+              {{ sport_boxes(u.sports or [], u.is_super) }}
+              <div class="field"><label for="pw{{ u.id }}">New password <span class="muted">(leave blank to keep)</span></label>
+                <input id="pw{{ u.id }}" name="password" type="password" minlength="8" autocomplete="new-password"></div>
+              <button class="btn sm primary" type="submit">Save</button>
+            </form>
+          </details>
+          {% if u.id != current_user.id %}
+          <form class="inline" method="post" action="{{ url_for('admin.manage_admin', uid=u.id) }}">
+            {% include "admin/_csrf.html" %}<input type="hidden" name="action" value="delete">
+            <button class="btn sm danger" type="submit" data-confirm="Remove {{ u.username }}? They won't be able to sign in.">Remove</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <form class="card" method="post" action="{{ url_for('admin.create_admin') }}" data-admin-form>
+    {% include "admin/_csrf.html" %}
+    <h2>Add an admin</h2>
+    <div class="field"><label for="nu">Username</label><input id="nu" name="username" required maxlength="80" autocomplete="off"></div>
+    <div class="field"><label for="np">Password</label><input id="np" name="password" type="password" required minlength="8" autocomplete="new-password">
+      <div class="muted small">At least 8 characters. They can change it under Account.</div></div>
+    {{ sport_boxes() }}
+    <label class="check" style="margin-bottom:.75rem"><input type="checkbox" name="is_super" value="1" data-super> Make them a super admin instead</label>
+    <button class="btn primary" type="submit">Add admin</button>
+  </form>
+</div>
+{% endblock %}
