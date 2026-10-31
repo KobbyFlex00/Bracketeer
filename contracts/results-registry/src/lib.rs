@@ -30,6 +30,10 @@ enum DataKey {
 pub enum Error {
     /// Slugs are 1..=140 bytes, matching Bracketeer's tournaments.slug column.
     BadSlug = 1,
+    /// `version` must be exactly latest + 1, so a retried or reordered publish can't add a stray version.
+    VersionConflict = 2,
+    /// `extend` takes 1 <= from <= to <= latest, at most MAX_EXTEND versions per call.
+    BadRange = 3,
 }
 
 /// Emitted on every publish so indexers and explorers can follow new results.
@@ -50,6 +54,7 @@ pub struct AdminChanged {
 }
 
 const MAX_SLUG: u32 = 140;
+const MAX_EXTEND: u32 = 50;
 
 #[contract]
 pub struct ResultsRegistry;
@@ -73,13 +78,17 @@ impl ResultsRegistry {
         AdminChanged { admin: new_admin }.publish(&env);
     }
 
-    /// Append a new version of a tournament's results hash. Returns the new version number (1 for the first).
-    pub fn publish(env: Env, slug: String, hash: BytesN<32>) -> Result<u32, Error> {
+    /// Append version `version` of a tournament's results hash; it must be exactly latest + 1 (1 for the first).
+    /// The caller names the version it means to create, so a retry after an uncertain result, or a delayed
+    /// transaction, fails with VersionConflict instead of appending a duplicate or a stale snapshot.
+    pub fn publish(env: Env, slug: String, hash: BytesN<32>, version: u32) -> Result<u32, Error> {
         Self::stored_admin(&env).require_auth();
         if slug.len() == 0 || slug.len() > MAX_SLUG {
             return Err(Error::BadSlug);
         }
-        let version = Self::latest_version(&env, &slug) + 1;
+        if version != Self::latest_version(&env, &slug) + 1 {
+            return Err(Error::VersionConflict);
+        }
         let record = Record { version, hash: hash.clone(), ledger: env.ledger().sequence(), timestamp: env.ledger().timestamp() };
         let store = env.storage().persistent();
         store.set(&DataKey::Record(slug.clone(), version), &record);
@@ -110,17 +119,19 @@ impl ResultsRegistry {
         Self::latest_version(&env, &slug)
     }
 
-    /// Keep a tournament's records live (not archived). Anyone may pay for this; it changes no data.
-    pub fn extend(env: Env, slug: String) {
+    /// Keep versions `from..=to` of a tournament (and its latest pointer) live, not archived. Anyone may pay
+    /// for this; it changes no data. Bounded per call so long histories can be refreshed in batches.
+    pub fn extend(env: Env, slug: String, from: u32, to: u32) -> Result<(), Error> {
         let latest = Self::latest_version(&env, &slug);
-        if latest == 0 {
-            return;
+        if from == 0 || from > to || to > latest || to - from >= MAX_EXTEND {
+            return Err(Error::BadRange);
         }
         Self::bump(&env, &DataKey::Latest(slug.clone()));
-        for version in 1..=latest {
+        for version in from..=to {
             Self::bump(&env, &DataKey::Record(slug.clone(), version));
         }
         Self::bump_instance(&env);
+        Ok(())
     }
 
     fn stored_admin(env: &Env) -> Address {

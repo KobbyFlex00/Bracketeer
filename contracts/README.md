@@ -9,7 +9,7 @@ chain. A correction is published as a new version; earlier versions stay readabl
 
 | Network | Contract id |
 |---|---|
-| testnet | [`CDDSU7QOQNDCUBLYX3TBTEFAEAX4G7KE64YMLE7MKRR4TKTRAGQOLWFP`](https://stellar.expert/explorer/testnet/contract/CDDSU7QOQNDCUBLYX3TBTEFAEAX4G7KE64YMLE7MKRR4TKTRAGQOLWFP) |
+| testnet | [`CAM3C37JBBCXWWKQRSTGAC36OFB54KBKMPYGJMAQRRCBFSQLC2NOGAYP`](https://stellar.expert/explorer/testnet/contract/CAM3C37JBBCXWWKQRSTGAC36OFB54KBKMPYGJMAQRRCBFSQLC2NOGAYP) |
 
 Admin is currently a temporary deploy key; it moves to the club's own key with `set_admin`.
 
@@ -18,15 +18,17 @@ Admin is currently a temporary deploy key; it moves to the club's own key with `
 | Function | Who | What |
 |---|---|---|
 | `__constructor(admin)` | deploy | sets the admin key (no separate init, so no front-running window) |
-| `publish(slug, hash) -> u32` | admin | appends version N+1, emits `Published { slug, version, hash }` |
+| `publish(slug, hash, version) -> u32` | admin | appends `version`, which must be latest + 1 (so a retry or delayed tx can't add a stray version: `VersionConflict`); emits `Published { slug, version, hash }` |
 | `latest(slug) -> Option<Record>` | anyone | newest `{ version, hash, ledger, timestamp }` |
 | `get(slug, version) -> Option<Record>` | anyone | a specific earlier version |
 | `versions(slug) -> u32` | anyone | how many versions exist |
 | `set_admin(new_admin)` | admin | hand control to another key, emits `AdminChanged` |
 | `admin() -> Address` | anyone | current admin |
-| `extend(slug)` | anyone | refresh the records' TTL so they aren't archived; changes no data |
+| `extend(slug, from, to)` | anyone | refresh versions `from..=to` (≤ 50 per call) and the latest pointer so they aren't archived; changes no data |
 
-Records live in persistent storage with their TTL extended to the network maximum on every publish.
+Records live in persistent storage. A publish extends the new record's TTL to the network maximum (about six
+months on current limits); older versions are kept alive by calling `extend` periodically (Bracketeer will run
+this as a keeper). Even if a record is archived it is not lost: persistent entries can be restored.
 
 ## Develop
 
