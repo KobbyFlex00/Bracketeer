@@ -36,6 +36,14 @@ def test_bootstrap_login_is_super(db):
     assert user.is_super and user.can_manage("football")
 
 
+def test_bootstrap_promotes_an_existing_regular_login(db):
+    # Render runs ensure-admin on every deploy, usually for a login that already exists.
+    regular = _make_admin(db, "chief", ["chess"])
+    assert not regular.is_super and not regular.can_manage("scrabble")
+    user = ensure_admin("chief", "newpass123")
+    assert user.id == regular.id and user.is_super and user.can_manage("scrabble") and user.check_password("newpass123")
+
+
 def test_super_admin_adds_scoped_admins(admin, db):
     resp = admin.post("/admin/admins", data={"username": "ama", "password": "password123", "sport_scrabble": "1"},
                       follow_redirects=True)
